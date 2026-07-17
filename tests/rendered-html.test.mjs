@@ -15,17 +15,17 @@ async function render() {
   );
 }
 
-test("server-renders the finished Korean Google sign-in experience", async () => {
+test("server-renders only the minimal Google sign-in experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)?.[1] ?? html;
   assert.match(html, /<html lang="ko">/);
   assert.match(html, /<title>담다 \| 대입 상담 기록<\/title>/);
   assert.match(html, /Google 계정으로 계속하기/);
-  assert.match(html, /한 번의 상담도/);
-  assert.match(html, /교사로 둘러보기/);
-  assert.match(html, /학생으로 둘러보기/);
+  assert.match(html, /login-page-minimal/);
+  assert.doesNotMatch(body, /반가워요|한 번의 상담도|교사로 둘러보기|학생으로 둘러보기|대입 상담 기록 플랫폼/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/);
 });
 

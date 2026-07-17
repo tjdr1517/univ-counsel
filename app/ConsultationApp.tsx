@@ -4,19 +4,18 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ClipboardList, Copy,
   GraduationCap, Home, LogOut, Menu, Megaphone, MoreHorizontal, Plus, Search,
-  Settings, Sparkles, UserRound, Users, X,
+  Settings, UserRound, Users, X,
 } from "lucide-react";
 import {
   auth, connectStudentToTeacher, createAnnouncement, createConsultation, ensureTeacherConnectionCode, getOrCreateProfile, googleLogin,
   isFirebaseConfigured, logout, subscribeAnnouncements, subscribeConsultations,
-  subscribeStudents, type AdmissionPlan, type Announcement, type AppRole,
+  subscribeStudents, type AdmissionPlan, type Announcement,
   type ConsultationRecord, type UserProfile,
 } from "../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 
 type View = "home" | "records" | "students" | "announcements";
 
-const demoTeacher: UserProfile = { uid: "teacher-demo", displayName: "김도윤", email: "teacher@damda.school", role: "teacher", connectionCode: "DAMDA1" };
 const demoStudent: UserProfile = { uid: "student-seoyun", displayName: "박서윤", email: "seoyun@damda.school", role: "student", teacherId: "teacher-demo", teacherName: "김도윤", teacherCode: "DAMDA1", grade: 3, classNumber: 2 };
 const demoStudents: UserProfile[] = [
   demoStudent,
@@ -101,7 +100,7 @@ export default function ConsultationApp() {
   }, [profile, records, search]);
 
   if (loading) return <div className="loading-screen"><span className="brand-mark">담</span><p>상담 기록을 불러오는 중...</p></div>;
-  if (!profile) return <LoginScreen onDemo={role => setProfile(role === "teacher" ? demoTeacher : demoStudent)} />;
+  if (!profile) return <LoginScreen />;
 
   const selectView = (next: View) => { setView(next); setMobileNav(false); setSelectedRecord(null); };
 
@@ -165,31 +164,20 @@ export default function ConsultationApp() {
   );
 }
 
-function LoginScreen({ onDemo }: { onDemo: (role: AppRole) => void }) {
+function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const login = async () => {
-    if (!isFirebaseConfigured) { setError("아래 데모 계정으로 먼저 둘러보세요. Firebase 설정 후 Google 로그인이 활성화됩니다."); return; }
+    if (!isFirebaseConfigured) { setError("Google 로그인 설정을 준비 중입니다."); return; }
     setBusy(true); setError("");
     try { await googleLogin(); } catch { setError("로그인하지 못했습니다. 잠시 후 다시 시도해 주세요."); setBusy(false); }
   };
   return (
-    <main className="login-page">
-      <section className="login-story">
-        <div className="login-brand"><span className="brand-mark">담</span><span>담다</span></div>
-        <div className="story-copy"><span className="eyebrow">대입 상담 기록 플랫폼</span><h1>한 번의 상담도,<br />놓치지 않도록.</h1><p>교사와 학생이 같은 방향을 바라볼 수 있게<br />상담의 과정과 지원 전략을 차곡차곡 담습니다.</p></div>
-        <div className="quote-card"><Sparkles size={18} /><p>“기록은 학생의 가능성을<br />더 선명하게 만듭니다.”</p><small>담다의 시작 화면</small></div>
-      </section>
-      <section className="login-panel">
-        <div className="login-box">
-          <span className="mobile-login-logo"><span className="brand-mark">담</span>담다</span>
-          <h2>반가워요</h2><p>학교 Google 계정으로 간편하게 시작하세요.</p>
-          <button className="google-button" onClick={login} disabled={busy}><span className="google-g">G</span>{busy ? "로그인 중..." : "Google 계정으로 계속하기"}</button>
-          {error && <p className="login-error">{error}</p>}
-          {!isFirebaseConfigured && <div className="demo-login"><span>설정 전 데모 체험</span><div><button onClick={() => onDemo("teacher")}>교사로 둘러보기</button><button onClick={() => onDemo("student")}>학생으로 둘러보기</button></div></div>}
-          <p className="privacy-note">계속하면 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.</p>
-        </div>
-      </section>
+    <main className="login-page login-page-minimal">
+      <div className="minimal-login-box">
+        <button className="google-button" onClick={login} disabled={busy}><span className="google-g">G</span>{busy ? "로그인 중..." : "Google 계정으로 계속하기"}</button>
+        {error && <p className="login-error">{error}</p>}
+      </div>
     </main>
   );
 }
