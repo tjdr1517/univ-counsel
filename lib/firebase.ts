@@ -11,7 +11,9 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 
@@ -41,6 +43,9 @@ export interface UserProfile {
   photoURL?: string;
   role: AppRole;
   teacherId?: string;
+  teacherName?: string;
+  teacherCode?: string;
+  connectionCode?: string;
   grade?: number;
   classNumber?: number;
 }
@@ -86,20 +91,61 @@ export async function logout() {
 
 export async function getOrCreateProfile(user: User): Promise<UserProfile> {
   if (!db) throw new Error("Firebase 설정이 필요합니다.");
+  const normalizedEmail = (user.email ?? "").toLowerCase();
+  const teacherAccess = normalizedEmail
+    ? await getDoc(doc(db, "teacherAllowlist", normalizedEmail))
+    : null;
+  const allowedRole: AppRole = teacherAccess?.exists() ? "teacher" : "student";
   const ref = doc(db, "users", user.uid);
   const snapshot = await getDoc(ref);
   if (!snapshot.exists()) {
     const newProfile = {
       displayName: user.displayName ?? "이름 미등록",
-      email: user.email ?? "",
+      email: normalizedEmail,
       photoURL: user.photoURL ?? "",
-      role: "student" as const,
+      role: allowedRole,
       createdAt: serverTimestamp(),
     };
     await setDoc(ref, newProfile);
     return { uid: user.uid, ...newProfile };
   }
-  return { uid: user.uid, ...(snapshot.data() as Omit<UserProfile, "uid">) };
+  const existing = snapshot.data() as Omit<UserProfile, "uid">;
+  if (allowedRole === "teacher" && existing.role !== "teacher") {
+    await updateDoc(ref, { role: "teacher" });
+    return { uid: user.uid, ...existing, role: "teacher" };
+  }
+  return { uid: user.uid, ...existing };
+}
+
+export async function ensureTeacherConnectionCode(profile: UserProfile): Promise<UserProfile> {
+  if (!db || profile.role !== "teacher" || profile.connectionCode) return profile;
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const bytes = crypto.getRandomValues(new Uint8Array(6));
+    const code = Array.from(bytes, byte => alphabet[byte % alphabet.length]).join("");
+    const codeRef = doc(db, "teacherCodes", code);
+    if ((await getDoc(codeRef)).exists()) continue;
+    const batch = writeBatch(db);
+    batch.set(codeRef, { teacherId: profile.uid, teacherName: profile.displayName, createdAt: serverTimestamp() });
+    batch.update(doc(db, "users", profile.uid), { connectionCode: code });
+    await batch.commit();
+    return { ...profile, connectionCode: code };
+  }
+  throw new Error("연결 코드를 만들지 못했습니다. 다시 시도해 주세요.");
+}
+
+export async function connectStudentToTeacher(profile: UserProfile, rawCode: string): Promise<UserProfile> {
+  if (!db || profile.role !== "student") throw new Error("학생 계정에서만 연결할 수 있습니다.");
+  const code = rawCode.trim().toUpperCase();
+  const codeSnapshot = await getDoc(doc(db, "teacherCodes", code));
+  if (!codeSnapshot.exists()) throw new Error("연결 코드를 확인해 주세요.");
+  const teacher = codeSnapshot.data() as { teacherId: string; teacherName: string };
+  await updateDoc(doc(db, "users", profile.uid), {
+    teacherId: teacher.teacherId,
+    teacherName: teacher.teacherName,
+    teacherCode: code,
+  });
+  return { ...profile, teacherId: teacher.teacherId, teacherName: teacher.teacherName, teacherCode: code };
 }
 
 export function subscribeConsultations(profile: UserProfile, callback: (rows: ConsultationRecord[]) => void): Unsubscribe {

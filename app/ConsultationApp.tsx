@@ -2,12 +2,12 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ClipboardList,
+  Bell, BookOpen, CalendarDays, Check, ChevronDown, ChevronRight, ClipboardList, Copy,
   GraduationCap, Home, LogOut, Menu, Megaphone, MoreHorizontal, Plus, Search,
   Settings, Sparkles, UserRound, Users, X,
 } from "lucide-react";
 import {
-  auth, createAnnouncement, createConsultation, getOrCreateProfile, googleLogin,
+  auth, connectStudentToTeacher, createAnnouncement, createConsultation, ensureTeacherConnectionCode, getOrCreateProfile, googleLogin,
   isFirebaseConfigured, logout, subscribeAnnouncements, subscribeConsultations,
   subscribeStudents, type AdmissionPlan, type Announcement, type AppRole,
   type ConsultationRecord, type UserProfile,
@@ -16,8 +16,8 @@ import { onAuthStateChanged } from "firebase/auth";
 
 type View = "home" | "records" | "students" | "announcements";
 
-const demoTeacher: UserProfile = { uid: "teacher-demo", displayName: "김도윤", email: "teacher@damda.school", role: "teacher" };
-const demoStudent: UserProfile = { uid: "student-seoyun", displayName: "박서윤", email: "seoyun@damda.school", role: "student", teacherId: "teacher-demo", grade: 3, classNumber: 2 };
+const demoTeacher: UserProfile = { uid: "teacher-demo", displayName: "김도윤", email: "teacher@damda.school", role: "teacher", connectionCode: "DAMDA1" };
+const demoStudent: UserProfile = { uid: "student-seoyun", displayName: "박서윤", email: "seoyun@damda.school", role: "student", teacherId: "teacher-demo", teacherName: "김도윤", teacherCode: "DAMDA1", grade: 3, classNumber: 2 };
 const demoStudents: UserProfile[] = [
   demoStudent,
   { uid: "student-minjun", displayName: "이민준", email: "minjun@damda.school", role: "student", teacherId: "teacher-demo", grade: 3, classNumber: 2 },
@@ -72,7 +72,10 @@ export default function ConsultationApp() {
     if (!auth) return;
     return onAuthStateChanged(auth, async user => {
       if (!user) { setProfile(null); setLoading(false); return; }
-      try { setProfile(await getOrCreateProfile(user)); }
+      try {
+        const nextProfile = await getOrCreateProfile(user);
+        setProfile(await ensureTeacherConnectionCode(nextProfile));
+      }
       finally { setLoading(false); }
     });
   }, []);
@@ -94,7 +97,7 @@ export default function ConsultationApp() {
   const visibleRecords = useMemo(() => {
     const scoped = profile?.role === "student" ? records.filter(row => row.studentId === profile.uid) : records;
     const keyword = search.trim().toLowerCase();
-    return keyword ? scoped.filter(row => `${row.studentName} ${row.topic} ${row.summary}`.toLowerCase().includes(keyword)) : scoped;
+    return keyword ? scoped.filter(row => `${row.studentName} ${row.topic} ${row.summary} ${row.plans.map(plan => `${plan.university} ${plan.department} ${plan.track} ${plan.minimum} ${plan.memo}`).join(" ")}`.toLowerCase().includes(keyword)) : scoped;
   }, [profile, records, search]);
 
   if (loading) return <div className="loading-screen"><span className="brand-mark">담</span><p>상담 기록을 불러오는 중...</p></div>;
@@ -140,7 +143,7 @@ export default function ConsultationApp() {
         </header>
 
         <div className="page-wrap">
-          {view === "home" && <Dashboard profile={profile} records={visibleRecords} announcements={announcements} students={students} onView={selectView} onSelectRecord={row => { setSelectedRecord(row); setView("records"); }} onNewRecord={() => setRecordModal(true)} />}
+          {view === "home" && <Dashboard profile={profile} records={visibleRecords} announcements={announcements} students={students} onProfileChange={setProfile} onToast={setToast} onView={selectView} onSelectRecord={row => { setSelectedRecord(row); setView("records"); }} onNewRecord={() => setRecordModal(true)} />}
           {view === "records" && <RecordsPage profile={profile} records={visibleRecords} selected={selectedRecord} onSelect={setSelectedRecord} onBack={() => setSelectedRecord(null)} onNew={() => setRecordModal(true)} />}
           {view === "students" && <StudentsPage students={students} records={records} onOpen={student => { const first = records.find(row => row.studentId === student.uid) ?? null; setSelectedRecord(first); setView("records"); }} />}
           {view === "announcements" && <AnnouncementsPage profile={profile} announcements={announcements} onNew={() => setNoticeModal(true)} />}
@@ -195,16 +198,20 @@ function NavItem({ active, icon, label, badge, onClick }: { active: boolean; ico
   return <button className={active ? "active" : ""} onClick={onClick}>{icon}<span>{label}</span>{badge !== undefined && <small>{badge}</small>}</button>;
 }
 
-function Dashboard({ profile, records, announcements, students, onView, onSelectRecord, onNewRecord }: {
+function Dashboard({ profile, records, announcements, students, onProfileChange, onToast, onView, onSelectRecord, onNewRecord }: {
   profile: UserProfile; records: ConsultationRecord[]; announcements: Announcement[]; students: UserProfile[];
+  onProfileChange: (profile: UserProfile) => void; onToast: (message: string) => void;
   onView: (view: View) => void; onSelectRecord: (record: ConsultationRecord) => void; onNewRecord: () => void;
 }) {
   const isTeacher = profile.role === "teacher";
+  const todayLabel = new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" }).format(new Date());
+  const currentMonth = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit" }).format(new Date());
   return <>
-    <div className="page-heading"><div><span className="date-label">2026년 7월 17일 금요일</span><h1>{profile.displayName} {isTeacher ? "선생님" : "학생"}, 안녕하세요 <span>👋</span></h1><p>{isTeacher ? "오늘도 학생들의 가능성을 함께 찾아볼까요?" : "지원 계획과 지난 상담 내용을 차근차근 확인해 보세요."}</p></div>{isTeacher && <button className="primary-button" onClick={onNewRecord}><Plus size={18} />새 상담 기록</button>}</div>
+    <div className="page-heading"><div><span className="date-label">{todayLabel}</span><h1>{profile.displayName} {isTeacher ? "선생님" : "학생"}, 안녕하세요 <span>👋</span></h1><p>{isTeacher ? "오늘도 학생들의 가능성을 함께 찾아볼까요?" : "지원 계획과 지난 상담 내용을 차근차근 확인해 보세요."}</p></div>{isTeacher && <button className="primary-button" onClick={onNewRecord}><Plus size={18} />새 상담 기록</button>}</div>
+    <ConnectionPanel profile={profile} onProfileChange={onProfileChange} onToast={onToast} />
     <div className="stats-grid">
       <Stat icon={<Users />} color="sage" label={isTeacher ? "담당 학생" : "나의 상담"} value={isTeacher ? `${students.length}명` : `${records.length}건`} note={isTeacher ? "고3 전체" : "누적 기록"} />
-      <Stat icon={<CalendarDays />} color="peach" label="이번 달 상담" value={`${records.filter(r => r.date.startsWith("2026-07")).length}건`} note="최근 업데이트" />
+      <Stat icon={<CalendarDays />} color="peach" label="이번 달 상담" value={`${records.filter(r => r.date.startsWith(currentMonth)).length}건`} note="최근 업데이트" />
       <Stat icon={<GraduationCap />} color="blue" label="지원 대학" value={`${new Set(records.flatMap(r => r.plans.map(p => p.university))).size}곳`} note="전체 전형 기준" />
     </div>
     <div className="content-grid">
@@ -213,6 +220,19 @@ function Dashboard({ profile, records, announcements, students, onView, onSelect
     </div>
     <section className="tip-banner"><span className="tip-icon"><BookOpen /></span><div><span>오늘의 상담 팁</span><strong>학생이 스스로 다음 행동을 말하게 해보세요.</strong><p>상담의 마지막 3분, “그래서 이번 주에는 무엇을 해볼까요?”라고 물으면 실행 가능성이 높아집니다.</p></div></section>
   </>;
+}
+
+function ConnectionPanel({ profile, onProfileChange, onToast }: { profile: UserProfile; onProfileChange: (profile: UserProfile) => void; onToast: (message: string) => void }) {
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  if (profile.role === "teacher") {
+    return <section className="connection-panel teacher-connection"><div><span className="connection-icon"><Users /></span><div><strong>학생 연결 코드</strong><p>학생에게 코드를 전달하면 담당 학생으로 안전하게 연결됩니다.</p></div></div><button type="button" onClick={async () => { await navigator.clipboard.writeText(profile.connectionCode ?? ""); onToast("연결 코드를 복사했습니다."); }}><b>{profile.connectionCode ?? "생성 중"}</b><Copy size={15} /></button></section>;
+  }
+  if (profile.teacherId) {
+    return <section className="connection-panel connected"><span className="connection-icon"><Check /></span><div><strong>{profile.teacherName ?? "담당 교사"} 선생님과 연결됨</strong><p>상담 기록은 연결된 선생님과 학생 본인만 볼 수 있습니다.</p></div></section>;
+  }
+  return <section className="connection-panel needs-connection"><div><span className="connection-icon"><UserRound /></span><div><strong>담당 선생님과 연결해 주세요</strong><p>선생님에게 받은 6자리 연결 코드를 입력하세요.</p></div></div><form onSubmit={async event => { event.preventDefault(); setBusy(true); setError(""); try { const next = await connectStudentToTeacher(profile, code); onProfileChange(next); onToast("담당 선생님과 연결되었습니다."); } catch (reason) { setError(reason instanceof Error ? reason.message : "연결하지 못했습니다."); } finally { setBusy(false); } }}><input value={code} onChange={event => setCode(event.target.value.toUpperCase())} maxLength={6} placeholder="연결 코드" aria-label="교사 연결 코드" required /><button className="primary-button" disabled={busy}>{busy ? "확인 중" : "연결"}</button></form>{error && <p className="connection-error">{error}</p>}</section>;
 }
 
 function Stat({ icon, color, label, value, note }: { icon: React.ReactNode; color: string; label: string; value: string; note: string }) {
@@ -237,21 +257,29 @@ function StudentsPage({ students, records, onOpen }: { students: UserProfile[]; 
 }
 
 function AnnouncementsPage({ profile, announcements, onNew }: { profile: UserProfile; announcements: Announcement[]; onNew: () => void }) {
-  return <><div className="section-heading"><div><span className="eyebrow">NOTICE & GUIDE</span><h1>공지 · 입시 정보</h1><p>중요 일정과 도움이 되는 자료를 함께 확인합니다.</p></div>{profile.role === "teacher" && <button className="primary-button" onClick={onNew}><Plus size={18} />새 글 작성</button>}</div><div className="announcement-grid">{announcements.map(item => <article className={`announcement-card ${item.isPinned ? "pinned" : ""}`} key={item.id}>{item.isPinned && <span className="pin-label">중요 공지</span>}<div className="announcement-meta"><span className="tag">{item.category}</span><span>김도윤 선생님</span></div><h2>{item.title}</h2><p>{item.body}</p><button>자세히 보기 <ChevronRight size={15} /></button></article>)}</div></>;
+  return <><div className="section-heading"><div><span className="eyebrow">NOTICE & GUIDE</span><h1>공지 · 입시 정보</h1><p>중요 일정과 도움이 되는 자료를 함께 확인합니다.</p></div>{profile.role === "teacher" && <button className="primary-button" onClick={onNew}><Plus size={18} />새 글 작성</button>}</div><div className="announcement-grid">{announcements.map(item => <article className={`announcement-card ${item.isPinned ? "pinned" : ""}`} key={item.id}>{item.isPinned && <span className="pin-label">중요 공지</span>}<div className="announcement-meta"><span className="tag">{item.category}</span><span>{item.authorName} 선생님</span></div><h2>{item.title}</h2><p>{item.body}</p><button>자세히 보기 <ChevronRight size={15} /></button></article>)}</div></>;
 }
 
 function ModalShell({ title, description, onClose, children }: { title: string; description: string; onClose: () => void; children: React.ReactNode }) {
   return <div className="modal-scrim" role="presentation"><section className="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><header><div><h2 id="modal-title">{title}</h2><p>{description}</p></div><button className="icon-button" onClick={onClose} aria-label="닫기"><X /></button></header>{children}</section></div>;
 }
 
+const emptyPlan = (): AdmissionPlan => ({ university: "", department: "", track: "", minimum: "", memo: "" });
+
 function RecordModal({ profile, students, onClose, onSave }: { profile: UserProfile; students: UserProfile[]; onClose: () => void; onSave: (input: Omit<ConsultationRecord, "id">) => Promise<void> }) {
   const [saving, setSaving] = useState(false);
-  const [plan, setPlan] = useState<AdmissionPlan>({ university: "", department: "", track: "", minimum: "", memo: "" });
+  const [plans, setPlans] = useState<AdmissionPlan[]>([emptyPlan()]);
+  const updatePlan = (index: number, key: keyof AdmissionPlan, value: string) => setPlans(current => current.map((plan, planIndex) => planIndex === index ? { ...plan, [key]: value } : plan));
   const submit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); setSaving(true); const form = new FormData(event.currentTarget); const student = students.find(item => item.uid === form.get("studentId")); if (!student) return;
-    await onSave({ teacherId: profile.uid, studentId: student.uid, studentName: student.displayName, date: String(form.get("date")), topic: String(form.get("topic")), summary: String(form.get("summary")), plans: [plan] });
+    event.preventDefault();
+    setSaving(true);
+    const form = new FormData(event.currentTarget);
+    const student = students.find(item => item.uid === form.get("studentId"));
+    if (!student) { setSaving(false); return; }
+    await onSave({ teacherId: profile.uid, studentId: student.uid, studentName: student.displayName, date: String(form.get("date")), topic: String(form.get("topic")), summary: String(form.get("summary")), plans });
   };
-  return <ModalShell title="새 상담 기록" description="상담 내용과 지원 전형을 기록합니다." onClose={onClose}><form onSubmit={submit} className="modal-form"><div className="field-row"><label>학생<select name="studentId" required defaultValue=""><option value="" disabled>학생 선택</option>{students.map(s => <option value={s.uid} key={s.uid}>{s.displayName}</option>)}</select></label><label>상담 일자<input name="date" type="date" required defaultValue="2026-07-17" /></label></div><label>상담 주제<input name="topic" required placeholder="예: 수시 지원 전략 2차 점검" /></label><label>상담 요약<textarea name="summary" required rows={4} placeholder="상담에서 나눈 핵심 내용과 다음 행동을 기록하세요." /></label><div className="form-divider"><span>지원 전형 01</span></div><div className="field-row"><label>학교<input required value={plan.university} onChange={e => setPlan({ ...plan, university: e.target.value })} placeholder="대학교" /></label><label>학과<input required value={plan.department} onChange={e => setPlan({ ...plan, department: e.target.value })} placeholder="학과 / 계열" /></label></div><div className="field-row"><label>전형<input required value={plan.track} onChange={e => setPlan({ ...plan, track: e.target.value })} placeholder="학생부종합" /></label><label>수능 최저<input value={plan.minimum} onChange={e => setPlan({ ...plan, minimum: e.target.value })} placeholder="예: 2개 합 5 / 없음" /></label></div><label>전형 메모<input value={plan.memo} onChange={e => setPlan({ ...plan, memo: e.target.value })} placeholder="확인할 사항이나 학생의 강점" /></label><div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving}>{saving ? "저장 중..." : "기록 저장"}</button></div></form></ModalShell>;
+  const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+  return <ModalShell title="새 상담 기록" description="상담 내용과 지원 전형을 기록합니다." onClose={onClose}><form onSubmit={submit} className="modal-form"><div className="field-row"><label>학생<select name="studentId" required defaultValue=""><option value="" disabled>{students.length ? "학생 선택" : "연결된 학생이 없습니다"}</option>{students.map(s => <option value={s.uid} key={s.uid}>{s.displayName}</option>)}</select></label><label>상담 일자<input name="date" type="date" required defaultValue={today} /></label></div><label>상담 주제<input name="topic" required placeholder="예: 수시 지원 전략 2차 점검" /></label><label>상담 요약<textarea name="summary" required rows={4} placeholder="상담에서 나눈 핵심 내용과 다음 행동을 기록하세요." /></label>{plans.map((plan, index) => <div className="plan-editor" key={index}><div className="form-divider"><span>지원 전형 {String(index + 1).padStart(2, "0")}</span>{plans.length > 1 && <button type="button" onClick={() => setPlans(current => current.filter((_, planIndex) => planIndex !== index))}>삭제</button>}</div><div className="field-row"><label>학교<input required value={plan.university} onChange={e => updatePlan(index, "university", e.target.value)} placeholder="대학교" /></label><label>학과<input required value={plan.department} onChange={e => updatePlan(index, "department", e.target.value)} placeholder="학과 / 계열" /></label></div><div className="field-row"><label>전형<input required value={plan.track} onChange={e => updatePlan(index, "track", e.target.value)} placeholder="학생부종합" /></label><label>수능 최저<input value={plan.minimum} onChange={e => updatePlan(index, "minimum", e.target.value)} placeholder="예: 2개 합 5 / 없음" /></label></div><label>전형 메모<input value={plan.memo} onChange={e => updatePlan(index, "memo", e.target.value)} placeholder="확인할 사항이나 학생의 강점" /></label></div>)}<button type="button" className="add-plan-button" onClick={() => setPlans(current => [...current, emptyPlan()])}><Plus size={15} />지원 전형 추가</button><div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving || !students.length}>{saving ? "저장 중..." : "기록 저장"}</button></div></form></ModalShell>;
 }
 
 function NoticeModal({ profile, onClose, onSave }: { profile: UserProfile; onClose: () => void; onSave: (input: Omit<Announcement, "id" | "publishedAt">) => Promise<void> }) {
