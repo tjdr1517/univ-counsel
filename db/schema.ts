@@ -1,4 +1,65 @@
-// Intentionally empty by default.
-// Add Drizzle tables here when the site actually needs a database.
-// See examples/d1/db/schema.ts for an opt-in example.
-export {};
+import { sql } from "drizzle-orm";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
+  role: text("role", { enum: ["teacher", "student"] }).notNull(),
+  status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
+  teacherId: text("teacher_id"),
+  grade: integer("grade"),
+  classNumber: integer("class_number"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  approvedAt: text("approved_at"),
+  approvedBy: text("approved_by"),
+}, (table) => [
+  uniqueIndex("users_email_unique").on(table.email),
+  index("users_status_idx").on(table.status),
+  index("users_teacher_idx").on(table.teacherId),
+]);
+
+export const sessions = sqliteTable("sessions", {
+  tokenHash: text("token_hash").primaryKey(),
+  userId: text("user_id").notNull(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("sessions_user_idx").on(table.userId), index("sessions_expiry_idx").on(table.expiresAt)]);
+
+export const consultations = sqliteTable("consultations", {
+  id: text("id").primaryKey(),
+  teacherId: text("teacher_id").notNull(),
+  studentId: text("student_id").notNull(),
+  studentName: text("student_name").notNull(),
+  date: text("date").notNull(),
+  topic: text("topic").notNull(),
+  summary: text("summary").notNull(),
+  plansJson: text("plans_json").notNull().default("[]"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("consultations_teacher_date_idx").on(table.teacherId, table.date), index("consultations_student_date_idx").on(table.studentId, table.date)]);
+
+export const announcements = sqliteTable("announcements", {
+  id: text("id").primaryKey(),
+  authorId: text("author_id").notNull(),
+  authorName: text("author_name").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  category: text("category").notNull().default("공지"),
+  isPinned: integer("is_pinned", { mode: "boolean" }).notNull().default(false),
+  publishedAt: text("published_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("announcements_date_idx").on(table.publishedAt)]);
+
+export const attachments = sqliteTable("attachments", {
+  id: text("id").primaryKey(),
+  ownerType: text("owner_type", { enum: ["consultation", "announcement"] }).notNull(),
+  ownerId: text("owner_id").notNull(),
+  r2Key: text("r2_key").notNull(),
+  fileName: text("file_name").notNull(),
+  contentType: text("content_type").notNull(),
+  size: integer("size").notNull(),
+  uploadedBy: text("uploaded_by").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("attachments_r2_key_unique").on(table.r2Key), index("attachments_owner_idx").on(table.ownerType, table.ownerId)]);

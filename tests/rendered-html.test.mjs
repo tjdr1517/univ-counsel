@@ -2,79 +2,62 @@ import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
-const projectRoot = new URL("../", import.meta.url);
+const root = new URL("../", import.meta.url);
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(
-    new Request("http://localhost/", { headers: { accept: "text/html" } }),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
-}
-
-test("server-renders only the minimal Google sign-in experience", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
-  const html = await response.text();
-  const body = html.match(/<body>([\s\S]*?)<\/body>/)?.[1] ?? html;
-  assert.match(html, /<html lang="ko">/);
-  assert.match(html, /<title>담다 \| 대입 상담 기록<\/title>/);
-  assert.match(html, /Google 계정으로 계속하기/);
-  assert.match(html, /login-page-minimal/);
-  assert.doesNotMatch(body, /반가워요|한 번의 상담도|교사로 둘러보기|학생으로 둘러보기|대입 상담 기록 플랫폼/);
-  assert.doesNotMatch(html, /codex-preview|Your site is taking shape|Building your site/);
-});
-
-test("contains the complete consultation and multi-track recording workflow", async () => {
-  const app = await readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8");
-  const firebase = await readFile(new URL("../lib/firebase.ts", import.meta.url), "utf8");
-  for (const label of ["상담 일자", "학교", "학과", "전형", "수능 최저", "전형 메모", "지원 전형 추가"]) {
-    assert.match(app, new RegExp(label));
-  }
-  assert.match(app, /setPlans\(current => \[\.\.\.current, emptyPlan\(\)\]\)/);
-  assert.match(firebase, /plans: AdmissionPlan\[\]/);
-  assert.match(firebase, /orderBy\("date", "desc"\)/);
-  assert.match(app, /plan\.university.*plan\.department.*plan\.track.*plan\.minimum.*plan\.memo/s);
-});
-
-test("enforces participant-only records and teacher-only publishing", async () => {
-  const rules = await readFile(new URL("../firestore.rules", import.meta.url), "utf8");
-  assert.match(rules, /resource\.data\.studentId == request\.auth\.uid/);
-  assert.match(rules, /resource\.data\.teacherId == request\.auth\.uid/);
-  assert.match(rules, /match \/announcements\/\{postId\}/);
-  assert.match(rules, /allow create: if isTeacher\(\)/);
-  assert.match(rules, /match \/teacherAllowlist\/\{email\}/);
-  assert.match(rules, /match \/teacherCodes\/\{code\}/);
-  assert.match(rules, /get\(\/databases\/\$\(database\)\/documents\/users\/\$\(request\.resource\.data\.studentId\)\)\.data\.teacherId == request\.auth\.uid/);
-});
-
-test("uses popup login on every device and never seeds demo records in configured production", async () => {
-  const [app, firebase] = await Promise.all([
+test("renders the Korean email login experience", async () => {
+  const [layout, app] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../lib/firebase.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(firebase, /signInWithPopup\(auth, provider\)/);
-  assert.doesNotMatch(firebase, /signInWithRedirect|matchMedia/);
-  assert.match(app, /useState<ConsultationRecord\[]>\(isFirebaseConfigured \? \[] : demoRecords\)/);
-  assert.match(app, /useState<Announcement\[]>\(isFirebaseConfigured \? \[] : demoAnnouncements\)/);
-  assert.match(app, /useState<UserProfile\[]>\(isFirebaseConfigured \? \[] : demoStudents\)/);
+  assert.match(layout, /<html lang="ko">/);
+  assert.match(layout, /담다 \| 대입 상담 기록/);
+  assert.match(app, /로그인/);
+  assert.match(app, /계정 만들기/);
+  assert.doesNotMatch(app, /Google 계정|firebase/i);
 });
 
-test("keeps the finished interface responsive and removes starter assets", async () => {
-  const [css, page, packageJson] = await Promise.all([
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
+test("uses D1 and R2 with generated migrations", async () => {
+  const [hosting, schema, migration] = await Promise.all([
+    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0000_even_phalanx.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(css, /@media \(max-width:720px\)/);
-  assert.match(css, /\.sidebar\s*\{transform:translateX\(-100%\)/);
-  assert.match(css, /\.stats-grid\{grid-template-columns:1fr\}/);
-  assert.match(css, /\.plan-grid\{grid-template-columns:1fr\}/);
-  assert.match(page, /<ConsultationApp \/>/);
-  assert.doesNotMatch(packageJson, /react-loading-skeleton/);
-  await assert.rejects(access(new URL("app/_sites-preview/SkeletonPreview.tsx", projectRoot)));
+  assert.match(hosting, /"d1": "DB"/);
+  assert.match(hosting, /"r2": "FILES"/);
+  for (const table of ["users", "sessions", "consultations", "announcements", "attachments"]) {
+    assert.ok(schema.includes(`sqliteTable("${table}"`));
+    assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
+  }
+});
+
+test("keeps authentication and record authorization on the server", async () => {
+  const [server, dashboard, consultations, approval, attachments] = await Promise.all([
+    readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/consultations/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/users/[id]/approve/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/attachments/[id]/route.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(server, /PBKDF2/);
+  assert.match(server, /HttpOnly; Secure; SameSite=Lax/);
+  assert.match(dashboard, /student_id = \?/);
+  assert.match(dashboard, /teacher_id = \?/);
+  assert.match(consultations, /teacher_id=\?/);
+  assert.match(approval, /status='approved'/);
+  assert.match(attachments, /canAccessOwner/);
+});
+
+test("supports all requested admissions fields and uploads", async () => {
+  const app = await readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8");
+  for (const label of ["상담 일자", "학교", "학과", "전형", "수능 최저", "기타 메모", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  assert.match(app, /setPlans\(current => \[\.\.\.current, emptyPlan\(\)\]\)/);
+  assert.match(app, /\/api\/attachments/);
+});
+
+test("removes every Firebase project artifact and keeps responsive CSS", async () => {
+  const [pkg, css] = await Promise.all([readFile(new URL("../package.json", import.meta.url), "utf8"), readFile(new URL("../app/globals.css", import.meta.url), "utf8")]);
+  assert.doesNotMatch(pkg, /firebase/i);
+  assert.match(css, /@media\(max-width:720px\)|@media \(max-width:720px\)/);
+  for (const path of ["lib/firebase.ts", "firebase.json", "firestore.rules", "firestore.indexes.json"]) await assert.rejects(access(new URL(`../${path}`, import.meta.url)));
+  assert.ok(root);
 });
