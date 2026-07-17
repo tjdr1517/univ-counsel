@@ -56,10 +56,11 @@ function formatDate(value: string) {
 export default function ConsultationApp() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [authError, setAuthError] = useState("");
   const [view, setView] = useState<View>("home");
-  const [records, setRecords] = useState<ConsultationRecord[]>(demoRecords);
-  const [announcements, setAnnouncements] = useState<Announcement[]>(demoAnnouncements);
-  const [students, setStudents] = useState<UserProfile[]>(demoStudents);
+  const [records, setRecords] = useState<ConsultationRecord[]>(isFirebaseConfigured ? [] : demoRecords);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(isFirebaseConfigured ? [] : demoAnnouncements);
+  const [students, setStudents] = useState<UserProfile[]>(isFirebaseConfigured ? [] : demoStudents);
   const [selectedRecord, setSelectedRecord] = useState<ConsultationRecord | null>(null);
   const [mobileNav, setMobileNav] = useState(false);
   const [search, setSearch] = useState("");
@@ -70,10 +71,16 @@ export default function ConsultationApp() {
   useEffect(() => {
     if (!auth) return;
     return onAuthStateChanged(auth, async user => {
-      if (!user) { setProfile(null); setLoading(false); return; }
+      if (!user) { setProfile(null); setAuthError(""); setLoading(false); return; }
       try {
         const nextProfile = await getOrCreateProfile(user);
         setProfile(await ensureTeacherConnectionCode(nextProfile));
+        setAuthError("");
+      }
+      catch (reason) {
+        console.error("Failed to initialize the signed-in profile", reason);
+        setProfile(null);
+        setAuthError("계정 정보를 불러오지 못했습니다. 잠시 후 다시 로그인해 주세요.");
       }
       finally { setLoading(false); }
     });
@@ -100,7 +107,7 @@ export default function ConsultationApp() {
   }, [profile, records, search]);
 
   if (loading) return <LoginScreen checking />;
-  if (!profile) return <LoginScreen />;
+  if (!profile) return <LoginScreen externalError={authError} />;
 
   const selectView = (next: View) => { setView(next); setMobileNav(false); setSelectedRecord(null); };
 
@@ -164,7 +171,7 @@ export default function ConsultationApp() {
   );
 }
 
-function LoginScreen({ checking = false }: { checking?: boolean }) {
+function LoginScreen({ checking = false, externalError = "" }: { checking?: boolean; externalError?: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const login = async () => {
@@ -176,7 +183,7 @@ function LoginScreen({ checking = false }: { checking?: boolean }) {
     <main className="login-page login-page-minimal">
       <div className="minimal-login-box">
         <button className="google-button" onClick={login} disabled={busy || checking}><span className="google-g">G</span>{busy ? "로그인 중..." : "Google 계정으로 계속하기"}</button>
-        {error && <p className="login-error">{error}</p>}
+        {(error || externalError) && <p className="login-error">{error || externalError}</p>}
       </div>
     </main>
   );

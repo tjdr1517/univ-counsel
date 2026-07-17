@@ -52,6 +52,18 @@ test("enforces participant-only records and teacher-only publishing", async () =
   assert.match(rules, /get\(\/databases\/\$\(database\)\/documents\/users\/\$\(request\.resource\.data\.studentId\)\)\.data\.teacherId == request\.auth\.uid/);
 });
 
+test("uses redirect login on mobile and never seeds demo records in configured production", async () => {
+  const [app, firebase] = await Promise.all([
+    readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/firebase.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(firebase, /matchMedia\("\(max-width: 720px\)"\)/);
+  assert.match(firebase, /signInWithRedirect\(auth, provider\)/);
+  assert.match(app, /useState<ConsultationRecord\[]>\(isFirebaseConfigured \? \[] : demoRecords\)/);
+  assert.match(app, /useState<Announcement\[]>\(isFirebaseConfigured \? \[] : demoAnnouncements\)/);
+  assert.match(app, /useState<UserProfile\[]>\(isFirebaseConfigured \? \[] : demoStudents\)/);
+});
+
 test("keeps the finished interface responsive and removes starter assets", async () => {
   const [css, page, packageJson] = await Promise.all([
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
