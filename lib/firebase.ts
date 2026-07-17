@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { GoogleAuthProvider, getAuth, signInWithPopup, signInWithRedirect, signOut, type User } from "firebase/auth";
+import { GoogleAuthProvider, getAuth, signInWithPopup, signOut, type User } from "firebase/auth";
 import {
   addDoc,
   collection,
@@ -92,10 +92,6 @@ export async function googleLogin() {
   if (!auth) throw new Error("Firebase 설정이 필요합니다.");
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
-  if (window.matchMedia("(max-width: 720px)").matches) {
-    await signInWithRedirect(auth, provider);
-    return null;
-  }
   return signInWithPopup(auth, provider);
 }
 
