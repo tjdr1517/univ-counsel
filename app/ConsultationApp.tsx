@@ -99,7 +99,7 @@ export default function ConsultationApp() {
     return keyword ? scoped.filter(row => `${row.studentName} ${row.topic} ${row.summary} ${row.plans.map(plan => `${plan.university} ${plan.department} ${plan.track} ${plan.minimum} ${plan.memo}`).join(" ")}`.toLowerCase().includes(keyword)) : scoped;
   }, [profile, records, search]);
 
-  if (loading) return <div className="loading-screen"><span className="brand-mark">담</span><p>상담 기록을 불러오는 중...</p></div>;
+  if (loading) return <LoginScreen checking />;
   if (!profile) return <LoginScreen />;
 
   const selectView = (next: View) => { setView(next); setMobileNav(false); setSelectedRecord(null); };
@@ -164,7 +164,7 @@ export default function ConsultationApp() {
   );
 }
 
-function LoginScreen() {
+function LoginScreen({ checking = false }: { checking?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const login = async () => {
@@ -175,7 +175,7 @@ function LoginScreen() {
   return (
     <main className="login-page login-page-minimal">
       <div className="minimal-login-box">
-        <button className="google-button" onClick={login} disabled={busy}><span className="google-g">G</span>{busy ? "로그인 중..." : "Google 계정으로 계속하기"}</button>
+        <button className="google-button" onClick={login} disabled={busy || checking}><span className="google-g">G</span>{busy ? "로그인 중..." : "Google 계정으로 계속하기"}</button>
         {error && <p className="login-error">{error}</p>}
       </div>
     </main>
