@@ -16,6 +16,10 @@ test("renders the Korean username login experience", async () => {
   assert.match(app, /아이디와 비밀번호/);
   assert.match(app, /name="username"/);
   assert.match(app, /name="studentNumber"/);
+  assert.match(app, /window\.history\.pushState/);
+  assert.match(app, /window\.history\.replaceState/);
+  assert.match(app, /addEventListener\("popstate"/);
+  assert.match(app, /window\.location\.hash/);
   assert.doesNotMatch(app, /name="grade"|name="classNumber"/);
   assert.doesNotMatch(app, /type="email"|Google 계정|firebase/i);
 });

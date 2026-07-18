@@ -7,6 +7,19 @@ import type { Announcement, Attachment, Consultation, DashboardData, InterestUni
 
 type View = "home" | "records" | "interests" | "students" | "announcements";
 
+const viewHashes: Record<View, string> = { home: "", records: "records", interests: "interests", students: "students", announcements: "announcements" };
+
+function viewFromLocation(): View {
+  if (typeof window === "undefined") return "home";
+  const hash = window.location.hash.slice(1);
+  return (Object.entries(viewHashes).find(([, value]) => value === hash)?.[0] as View | undefined) ?? "home";
+}
+
+function viewUrl(view: View) {
+  const base = `${window.location.pathname}${window.location.search}`;
+  return view === "home" ? base : `${base}#${viewHashes[view]}`;
+}
+
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: init?.body instanceof FormData ? init.headers : { "Content-Type": "application/json", ...init?.headers } });
   const data = await response.json().catch(() => ({})) as T & { error?: string };
@@ -29,7 +42,7 @@ export default function ConsultationApp() {
   const [user, setUser] = useState<User | null>(null);
   const [data, setData] = useState<DashboardData | null>(null);
   const [checking, setChecking] = useState(true);
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(viewFromLocation);
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Consultation | null>(null);
@@ -43,6 +56,21 @@ export default function ConsultationApp() {
     const next = await api<DashboardData>("/api/dashboard");
     setData(next); setUser(next.user);
   };
+
+  useEffect(() => {
+    const initialView = viewFromLocation();
+    const state = window.history.state as { damdaView?: View } | null;
+    if (!state?.damdaView) {
+      if (initialView === "home") window.history.replaceState({ damdaView: "home" }, "", viewUrl("home"));
+      else {
+        window.history.replaceState({ damdaView: "home" }, "", viewUrl("home"));
+        window.history.pushState({ damdaView: initialView }, "", viewUrl(initialView));
+      }
+    }
+    const restoreView = () => { setView(viewFromLocation()); setMenu(false); setSelected(null); };
+    window.addEventListener("popstate", restoreView);
+    return () => window.removeEventListener("popstate", restoreView);
+  }, []);
 
   useEffect(() => {
     api<{ user: User }>("/api/auth/me").then(({ user }) => {
@@ -73,7 +101,10 @@ export default function ConsultationApp() {
   if (user.status !== "approved") return <ApprovalWaiting user={user} onLogout={async () => { await api("/api/auth/logout", { method: "POST" }); setUser(null); }} />;
   if (!data) return <div className="center-state"><div className="spinner" /><p>상담 기록을 불러오고 있습니다.</p></div>;
 
-  const navigate = (next: View) => { setView(next); setMenu(false); setSelected(null); };
+  const navigate = (next: View) => {
+    if (next !== view || window.location.hash.slice(1) !== viewHashes[next]) window.history.pushState({ damdaView: next }, "", viewUrl(next));
+    setView(next); setMenu(false); setSelected(null);
+  };
   const logout = async () => { await api("/api/auth/logout", { method: "POST" }); setUser(null); setData(null); };
   const notify = (message: string) => { setToast(message); refresh().catch(() => undefined); };
 
