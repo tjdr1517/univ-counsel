@@ -36,12 +36,13 @@ test("uses D1 and R2 with generated migrations", async () => {
 });
 
 test("keeps authentication and record authorization on the server", async () => {
-  const [server, dashboard, consultations, approval, attachments] = await Promise.all([
+  const [server, dashboard, consultations, approval, attachments, announcementActions] = await Promise.all([
     readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/consultations/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/users/[id]/approve/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/attachments/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/announcements/[id]/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(server, /PBKDF2/);
   assert.match(server, /PBKDF2_ITERATIONS = 100_000/);
@@ -53,6 +54,10 @@ test("keeps authentication and record authorization on the server", async () => 
   assert.match(consultations, /teacher_id=\?/);
   assert.match(approval, /status='approved'/);
   assert.match(attachments, /canAccessOwner/);
+  assert.match(announcementActions, /row\.author_id !== auth\.user\.id/);
+  assert.match(announcementActions, /export async function PATCH/);
+  assert.match(announcementActions, /export async function DELETE/);
+  assert.match(announcementActions, /FILES\.delete/);
 });
 
 test("separates counseling notes from researched universities", async () => {
@@ -75,7 +80,9 @@ test("separates counseling notes from researched universities", async () => {
   assert.doesNotMatch(app, /formElement\.elements/);
   assert.match(app, /form\.getAll\("files"\)/);
   assert.match(app, /type="submit" className="primary-button" disabled=\{saving\}/);
-  assert.match(app, /공지는 게시했지만 첨부 파일은 올리지 못했습니다/);
+  assert.match(app, /첨부 파일은 올리지 못했습니다/);
+  assert.match(app, /공지 수정/);
+  assert.match(app, /공지를 삭제할까요/);
   assert.match(app, /contentType\.startsWith\("image\/"\)/);
   assert.match(app, /className="image-thumbnails"/);
   assert.match(app, /loading="lazy"/);
