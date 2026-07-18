@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { Bell, Check, ChevronRight, ClipboardList, FileText, GraduationCap, Home, LogOut, Menu, Megaphone, Paperclip, Plus, Search, ShieldCheck, Upload, Users, X } from "lucide-react";
 import type { Announcement, Attachment, Consultation, DashboardData, InterestUniversity, Role, User } from "../lib/types";
 
@@ -162,7 +163,12 @@ function RecordsPage({ user, records, selected, onSelect, onBack, onNew }: { use
 
 function Attachments({ files }: { files: Attachment[] }) {
   if (!files.length) return null;
-  return <div className="attachment-list">{files.map(file => <a href={`/api/attachments/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><Paperclip /><span>{file.fileName}<small>{fileSize(file.size)}</small></span></a>)}</div>;
+  const images = files.filter(file => file.contentType.startsWith("image/"));
+  const documents = files.filter(file => !file.contentType.startsWith("image/"));
+  return <div className="attachment-area">
+    {images.length > 0 && <div className="image-thumbnails">{images.map(file => <a href={`/api/attachments/${file.id}`} target="_blank" rel="noreferrer" key={file.id} aria-label={`${file.fileName} 원본 보기`} title={file.fileName}><Image src={`/api/attachments/${file.id}`} alt={file.fileName} width={188} height={141} loading="lazy" unoptimized /></a>)}</div>}
+    {documents.length > 0 && <div className="attachment-list">{documents.map(file => <a href={`/api/attachments/${file.id}`} target="_blank" rel="noreferrer" key={file.id}><Paperclip /><span>{file.fileName}<small>{fileSize(file.size)}</small></span></a>)}</div>}
+  </div>;
 }
 
 function RecordDetail({ record, onBack }: { record: Consultation; onBack: () => void }) {
