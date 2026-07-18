@@ -8,8 +8,7 @@ export type User = {
   role: Role;
   status: AccountStatus;
   teacherId: string | null;
-  grade: number | null;
-  classNumber: number | null;
+  studentNumber: number | null;
   createdAt?: string;
 };
 

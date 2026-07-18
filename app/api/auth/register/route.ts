@@ -9,6 +9,8 @@ export async function POST(request: Request) {
   if (!/^[a-z0-9][a-z0-9._-]{3,19}$/.test(username)) return jsonError("아이디는 영문 소문자·숫자로 시작하는 4~20자로 입력해 주세요.");
   if (name.length < 2 || name.length > 40) return jsonError("이름은 2~40자로 입력해 주세요.");
   if (password.length < 8 || password.length > 100) return jsonError("비밀번호는 8자 이상 입력해 주세요.");
+  const studentNumber = role === "student" ? Number(input.studentNumber) : null;
+  if (role === "student" && (!Number.isInteger(studentNumber) || studentNumber! < 1 || studentNumber! > 99)) return jsonError("번호는 1~99 사이의 숫자로 입력해 주세요.");
 
   const runtime = runtimeEnv();
   let status: "pending" | "approved" = "pending";
@@ -27,7 +29,7 @@ export async function POST(request: Request) {
   const passwordData = await hashPassword(password);
   try {
     await runtime.DB.prepare(`INSERT INTO users (id,email,name,password_hash,password_salt,role,status,grade,class_number,approved_at,approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-      .bind(id, username, name, passwordData.hash, passwordData.salt, role, status, role === "student" ? Number(input.grade) || null : null, role === "student" ? Number(input.classNumber) || null : null, status === "approved" ? new Date().toISOString() : null, status === "approved" ? id : null).run();
+      .bind(id, username, name, passwordData.hash, passwordData.salt, role, status, null, studentNumber, status === "approved" ? new Date().toISOString() : null, status === "approved" ? id : null).run();
   } catch {
     return jsonError("계정을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 500);
   }

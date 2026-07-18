@@ -44,8 +44,7 @@ export function safeUser(row: Record<string, unknown>): User {
     id: String(row.id), username: String(row.email), name: String(row.name),
     role: row.role as User["role"], status: row.status as User["status"],
     teacherId: row.teacher_id ? String(row.teacher_id) : null,
-    grade: row.grade == null ? null : Number(row.grade),
-    classNumber: row.class_number == null ? null : Number(row.class_number),
+    studentNumber: row.class_number == null ? null : Number(row.class_number),
     createdAt: row.created_at ? String(row.created_at) : undefined,
   };
 }

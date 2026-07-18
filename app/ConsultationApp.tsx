@@ -69,7 +69,7 @@ export default function ConsultationApp() {
   return <div className="app-shell">
     <aside className={`sidebar ${menu ? "open" : ""}`}>
       <div className="sidebar-top"><button className="brand" onClick={() => navigate("home")}><span className="brand-mark">담</span><span>담다</span></button><button className="icon-button mobile-only" onClick={() => setMenu(false)} aria-label="메뉴 닫기"><X size={19} /></button></div>
-      <div className="profile-chip"><span className="avatar">{user.name.slice(0, 1)}</span><div><strong>{user.name}</strong><small>{user.role === "teacher" ? "진로진학 교사" : `${user.grade ?? "-"}학년 ${user.classNumber ?? "-"}반`}</small></div></div>
+      <div className="profile-chip"><span className="avatar">{user.name.slice(0, 1)}</span><div><strong>{user.name}</strong><small>{user.role === "teacher" ? "진로진학 교사" : `${user.studentNumber ?? "-"}번 학생`}</small></div></div>
       <nav className="nav-list">
         <Nav active={view === "home"} icon={<Home />} label="홈" onClick={() => navigate("home")} />
         <Nav active={view === "records"} icon={<ClipboardList />} label="상담 기록" badge={records.length} onClick={() => navigate("records")} />
@@ -118,7 +118,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void
       {mode === "register" && <label>이름<input name="name" required autoComplete="name" placeholder="이름" /></label>}
       <label>아이디<input name="username" required minLength={4} maxLength={20} pattern="[A-Za-z0-9][A-Za-z0-9._-]{3,19}" autoComplete="username" placeholder="영문·숫자 4~20자" /></label>
       <label>비밀번호<input name="password" type="password" required minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="8자 이상" /></label>
-      {mode === "register" && role === "student" && <div className="field-row"><label>학년<select name="grade" defaultValue="3"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></label><label>반<input name="classNumber" type="number" min="1" max="30" required /></label></div>}
+      {mode === "register" && role === "student" && <label>번호<input name="studentNumber" type="number" inputMode="numeric" min="1" max="99" required placeholder="우리 반 번호" /></label>}
       {mode === "register" && role === "teacher" && <label>교사 개설 코드<input name="setupCode" type="password" required placeholder="관리자에게 받은 코드" /></label>}
       {error && <p className="form-error">{error}</p>}
       <button className="primary-button auth-submit" disabled={busy}>{busy ? "처리 중…" : mode === "login" ? "로그인" : "가입하기"}</button>
@@ -159,7 +159,7 @@ function RecordDetail({ record, onBack }: { record: Consultation; onBack: () => 
 
 function StudentsPage({ data, onApprove }: { data: DashboardData; onApprove: (id: string) => Promise<void> }) {
   const [busy, setBusy] = useState("");
-  return <><div className="section-heading"><div><span className="eyebrow">STUDENT MANAGEMENT</span><h1>학생 관리</h1><p>가입 신청을 승인하고 담당 학생을 확인합니다.</p></div></div>{data.pendingStudents.length > 0 && <section className="approval-section"><h2>승인 대기 <span>{data.pendingStudents.length}</span></h2>{data.pendingStudents.map(student => <article className="approval-row" key={student.id}><span className="student-avatar">{student.name.slice(0, 1)}</span><div><strong>{student.name}</strong><small>@{student.username} · {student.grade}학년 {student.classNumber}반</small></div><button className="primary-button" disabled={busy === student.id} onClick={async () => { setBusy(student.id); await onApprove(student.id); setBusy(""); }}>{busy === student.id ? "승인 중…" : "승인"}</button></article>)}</section>}<div className="student-grid">{data.students.map(student => <article className="student-card" key={student.id}><span className="student-avatar">{student.name.slice(0, 1)}</span><div><h3>{student.name}</h3><p>{student.grade}학년 {student.classNumber}반</p><small>@{student.username}</small></div></article>)}</div>{!data.students.length && !data.pendingStudents.length && <Empty text="아직 등록된 학생이 없습니다." />}</>;
+  return <><div className="section-heading"><div><span className="eyebrow">STUDENT MANAGEMENT</span><h1>학생 관리</h1><p>가입 신청을 승인하고 우리 반 학생을 확인합니다.</p></div></div>{data.pendingStudents.length > 0 && <section className="approval-section"><h2>승인 대기 <span>{data.pendingStudents.length}</span></h2>{data.pendingStudents.map(student => <article className="approval-row" key={student.id}><span className="student-avatar">{student.name.slice(0, 1)}</span><div><strong>{student.studentNumber ?? "-"}번 · {student.name}</strong><small>@{student.username}</small></div><button className="primary-button" disabled={busy === student.id} onClick={async () => { setBusy(student.id); await onApprove(student.id); setBusy(""); }}>{busy === student.id ? "승인 중…" : "승인"}</button></article>)}</section>}<div className="student-grid">{data.students.map(student => <article className="student-card" key={student.id}><span className="student-avatar">{student.studentNumber ?? "-"}</span><div><h3>{student.name}</h3><p>{student.studentNumber ?? "-"}번</p><small>@{student.username}</small></div></article>)}</div>{!data.students.length && !data.pendingStudents.length && <Empty text="아직 등록된 학생이 없습니다." />}</>;
 }
 
 function AnnouncementsPage({ user, announcements, onNew }: { user: User; announcements: Announcement[]; onNew: () => void }) {
