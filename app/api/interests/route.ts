@@ -1,4 +1,4 @@
-import { jsonError, requireUser, runtimeEnv } from "../../../lib/server";
+import { jsonError, reorderInterestPriorities, requireUser, runtimeEnv } from "../../../lib/server";
 
 export async function POST(request: Request) {
   const auth = await requireUser(request);
@@ -23,10 +23,16 @@ export async function POST(request: Request) {
   const department = String(input.department ?? "").trim();
   const track = String(input.track ?? "").trim();
   const minimum = String(input.minimum ?? "").trim();
+  const schoolGrade = String(input.schoolGrade ?? "").trim();
+  const cutoff2023 = String(input.cutoff2023 ?? "").trim();
+  const cutoff2024 = String(input.cutoff2024 ?? "").trim();
+  const cutoff2025 = String(input.cutoff2025 ?? "").trim();
+  const priority = Number(input.priority);
   const memo = String(input.memo ?? "").trim();
   if (!university || !department || !track) return jsonError("대학·학과·전형을 모두 입력해 주세요.");
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO interest_universities (id,teacher_id,student_id,student_name,university,department,track,minimum,memo) VALUES (?,?,?,?,?,?,?,?,?)")
-    .bind(id, teacherId, studentId, studentName, university, department, track, minimum, memo).run();
+  await db.prepare("INSERT INTO interest_universities (id,teacher_id,student_id,student_name,university,department,track,minimum,school_grade,cutoff_2023,cutoff_2024,cutoff_2025,priority,memo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(id, teacherId, studentId, studentName, university, department, track, minimum, schoolGrade, cutoff2023, cutoff2024, cutoff2025, 999, memo).run();
+  await reorderInterestPriorities(db, studentId, id, priority);
   return Response.json({ id }, { status: 201 });
 }

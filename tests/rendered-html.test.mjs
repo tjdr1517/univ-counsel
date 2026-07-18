@@ -56,12 +56,15 @@ test("keeps authentication and record authorization on the server", async () => 
 });
 
 test("separates counseling notes from researched universities", async () => {
-  const [app, consultations, interests] = await Promise.all([
+  const [app, consultations, interests, interestPriority, dashboard, server] = await Promise.all([
     readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/consultations/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/interests/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/interests/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
   ]);
-  for (const label of ["관심 대학", "대학", "학과", "전형", "수능 최저", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  for (const label of ["관심 대학", "대학", "학과", "전형", "수능 최저", "내신 등급", "2023년 커트라인", "2024년 커트라인", "2025년 커트라인", "지망 순위", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
   assert.doesNotMatch(app, /setPlans|emptyPlan/);
   assert.doesNotMatch(consultations, /input\.plans|normalizedPlans/);
   assert.match(interests, /interest_universities/);
@@ -71,6 +74,9 @@ test("separates counseling notes from researched universities", async () => {
   assert.match(app, /student-filter/);
   assert.match(app, /학생별 관심 대학/);
   assert.match(app, /interests\.filter\(item => item\.studentId === studentId\)/);
+  assert.match(interestPriority, /reorderInterestPriorities/);
+  assert.match(server, /ranked\.splice/);
+  assert.match(dashboard, /ORDER BY priority ASC/);
 });
 
 test("removes every Firebase project artifact and keeps responsive CSS", async () => {

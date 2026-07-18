@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const { user } = auth;
   const db = runtimeEnv().DB;
   const consultationSql = user.role === "teacher" ? "SELECT * FROM consultations WHERE teacher_id = ? ORDER BY date DESC, created_at DESC" : "SELECT * FROM consultations WHERE student_id = ? ORDER BY date DESC, created_at DESC";
-  const interestSql = user.role === "teacher" ? "SELECT * FROM interest_universities WHERE teacher_id = ? ORDER BY created_at DESC" : "SELECT * FROM interest_universities WHERE student_id = ? ORDER BY created_at DESC";
+  const interestSql = user.role === "teacher" ? "SELECT * FROM interest_universities WHERE teacher_id = ? ORDER BY priority ASC, created_at DESC" : "SELECT * FROM interest_universities WHERE student_id = ? ORDER BY priority ASC, created_at DESC";
   const [consultationResult, interestResult, announcementResult, attachmentResult] = await Promise.all([
     db.prepare(consultationSql).bind(user.id).all<Record<string, unknown>>(),
     db.prepare(interestSql).bind(user.id).all<Record<string, unknown>>(),
@@ -32,7 +32,9 @@ export async function GET(request: Request) {
   }));
   const interests: InterestUniversity[] = interestResult.results.map((row: Record<string, unknown>) => ({
     id: String(row.id), teacherId: String(row.teacher_id), studentId: String(row.student_id), studentName: String(row.student_name),
-    university: String(row.university), department: String(row.department), track: String(row.track), minimum: String(row.minimum), memo: String(row.memo), createdAt: String(row.created_at),
+    university: String(row.university), department: String(row.department), track: String(row.track), minimum: String(row.minimum),
+    schoolGrade: String(row.school_grade ?? ""), cutoff2023: String(row.cutoff_2023 ?? ""), cutoff2024: String(row.cutoff_2024 ?? ""), cutoff2025: String(row.cutoff_2025 ?? ""),
+    priority: Number(row.priority ?? 999), memo: String(row.memo), createdAt: String(row.created_at),
   }));
   const announcements: Announcement[] = announcementResult.results.map((row: Record<string, unknown>) => ({
     id: String(row.id), authorId: String(row.author_id), authorName: String(row.author_name), title: String(row.title), body: String(row.body),

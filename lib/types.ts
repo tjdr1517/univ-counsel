@@ -21,6 +21,11 @@ export type InterestUniversity = {
   department: string;
   track: string;
   minimum: string;
+  schoolGrade: string;
+  cutoff2023: string;
+  cutoff2024: string;
+  cutoff2025: string;
+  priority: number;
   memo: string;
   createdAt: string;
 };

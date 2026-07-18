@@ -113,3 +113,15 @@ export async function canAccessOwner(user: User, ownerType: string, ownerId: str
   const row = await db.prepare("SELECT teacher_id, student_id FROM consultations WHERE id = ? LIMIT 1").bind(ownerId).first<{ teacher_id: string; student_id: string }>();
   return Boolean(row && (row.teacher_id === user.id || row.student_id === user.id));
 }
+
+export async function reorderInterestPriorities(db: D1Database, studentId: string, targetId: string, requestedPriority: number) {
+  const result = await db.prepare("SELECT id,priority FROM interest_universities WHERE student_id=? ORDER BY priority ASC, created_at ASC")
+    .bind(studentId).all<{ id: string; priority: number }>();
+  const ranked = result.results.filter(row => row.id !== targetId && Number(row.priority) < 999).map(row => row.id);
+  const normalized = Number.isInteger(requestedPriority) && requestedPriority >= 1 && requestedPriority < 999 ? requestedPriority : 999;
+  if (normalized < 999) ranked.splice(Math.min(normalized - 1, ranked.length), 0, targetId);
+  const statements = ranked.map((id, index) => db.prepare("UPDATE interest_universities SET priority=?,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(index + 1, id));
+  if (normalized === 999) statements.push(db.prepare("UPDATE interest_universities SET priority=999,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(targetId));
+  if (statements.length) await db.batch(statements);
+  return normalized === 999 ? 999 : ranked.indexOf(targetId) + 1;
+}
