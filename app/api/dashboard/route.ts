@@ -1,5 +1,5 @@
 import { requireUser, runtimeEnv, safeUser } from "../../../lib/server";
-import type { Announcement, Attachment, Consultation, InterestUniversity } from "../../../lib/types";
+import type { Announcement, AppointmentSlot, Attachment, Consultation, InterestUniversity } from "../../../lib/types";
 
 function attachmentMap(rows: Record<string, unknown>[]) {
   const map = new Map<string, Attachment[]>();
@@ -18,11 +18,13 @@ export async function GET(request: Request) {
   const db = runtimeEnv().DB;
   const consultationSql = user.role === "teacher" ? "SELECT * FROM consultations WHERE teacher_id = ? ORDER BY date DESC, created_at DESC" : "SELECT * FROM consultations WHERE student_id = ? ORDER BY date DESC, created_at DESC";
   const interestSql = user.role === "teacher" ? "SELECT * FROM interest_universities WHERE teacher_id = ? ORDER BY priority ASC, created_at DESC" : "SELECT * FROM interest_universities WHERE student_id = ? ORDER BY priority ASC, created_at DESC";
-  const [consultationResult, interestResult, announcementResult, attachmentResult] = await Promise.all([
+  const appointmentTeacherId = user.role === "teacher" ? user.id : user.teacherId ?? "";
+  const [consultationResult, interestResult, announcementResult, attachmentResult, appointmentResult] = await Promise.all([
     db.prepare(consultationSql).bind(user.id).all<Record<string, unknown>>(),
     db.prepare(interestSql).bind(user.id).all<Record<string, unknown>>(),
     db.prepare("SELECT * FROM announcements ORDER BY is_pinned DESC, published_at DESC").all<Record<string, unknown>>(),
     db.prepare("SELECT id,owner_id,file_name,content_type,size FROM attachments ORDER BY created_at").all<Record<string, unknown>>(),
+    db.prepare("SELECT a.*,u.name AS reserved_name,u.class_number AS reserved_number FROM appointment_slots a LEFT JOIN users u ON u.id=a.student_id WHERE a.teacher_id=? ORDER BY a.date,a.time").bind(appointmentTeacherId).all<Record<string, unknown>>(),
   ]);
   const files = attachmentMap(attachmentResult.results);
   const consultations: Consultation[] = consultationResult.results.map((row: Record<string, unknown>) => ({
@@ -40,6 +42,11 @@ export async function GET(request: Request) {
     id: String(row.id), authorId: String(row.author_id), authorName: String(row.author_name), title: String(row.title), body: String(row.body),
     category: String(row.category), isPinned: Boolean(row.is_pinned), publishedAt: String(row.published_at), attachments: files.get(String(row.id)) ?? [],
   }));
+  const appointments: AppointmentSlot[] = appointmentResult.results.map((row: Record<string, unknown>) => ({
+    id: String(row.id), teacherId: String(row.teacher_id), date: String(row.date), time: String(row.time),
+    status: row.student_id ? "reserved" : "available", isMine: Boolean(row.student_id && row.student_id === user.id),
+    ...(user.role === "teacher" && row.student_id ? { studentName: String(row.reserved_name ?? ""), studentNumber: row.reserved_number == null ? null : Number(row.reserved_number) } : {}),
+  }));
   let students: ReturnType<typeof safeUser>[] = [];
   let pendingStudents: ReturnType<typeof safeUser>[] = [];
   if (user.role === "teacher") {
@@ -50,5 +57,5 @@ export async function GET(request: Request) {
     students = approved.results.map(safeUser);
     pendingStudents = pending.results.map(safeUser);
   }
-  return Response.json({ user, consultations, interests, announcements, students, pendingStudents });
+  return Response.json({ user, consultations, interests, announcements, appointments, students, pendingStudents });
 }

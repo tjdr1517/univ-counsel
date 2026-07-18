@@ -61,11 +61,23 @@ export type Announcement = {
   attachments: Attachment[];
 };
 
+export type AppointmentSlot = {
+  id: string;
+  teacherId: string;
+  date: string;
+  time: string;
+  status: "available" | "reserved";
+  isMine: boolean;
+  studentName?: string;
+  studentNumber?: number | null;
+};
+
 export type DashboardData = {
   user: User;
   consultations: Consultation[];
   interests: InterestUniversity[];
   announcements: Announcement[];
+  appointments: AppointmentSlot[];
   students: User[];
   pendingStudents: User[];
 };

@@ -36,6 +36,13 @@
       "when": 1784343601773,
       "tag": "0004_glamorous_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784381757808,
+      "tag": "0005_silly_serpent_society",
+      "breakpoints": true
     }
   ]
 }

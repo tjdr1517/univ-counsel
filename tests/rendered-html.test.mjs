@@ -35,7 +35,7 @@ test("uses D1 and R2 with generated migrations", async () => {
   const migration = (await Promise.all(migrationFiles.filter(file => file.endsWith(".sql")).map(file => readFile(new URL(`../drizzle/${file}`, import.meta.url), "utf8")))).join("\n");
   assert.match(hosting, /"d1": "DB"/);
   assert.match(hosting, /"r2": "FILES"/);
-  for (const table of ["users", "sessions", "consultations", "interest_universities", "announcements", "attachments"]) {
+  for (const table of ["users", "sessions", "consultations", "interest_universities", "announcements", "attachments", "appointment_slots"]) {
     assert.ok(schema.includes(`sqliteTable("${table}"`));
     assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   }
@@ -117,4 +117,23 @@ test("removes every Firebase project artifact and keeps responsive CSS", async (
   assert.match(css, /\.help-popover\{left:-68px;right:auto/);
   for (const path of ["lib/firebase.ts", "firebase.json", "firestore.rules", "firestore.indexes.json"]) await assert.rejects(access(new URL(`../${path}`, import.meta.url)));
   assert.ok(root);
+});
+
+test("keeps counseling appointments private and race-safe", async () => {
+  const [app, dashboard, createRoute, actionRoute, schema, migration] = await Promise.all([
+    readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/appointments/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/appointments/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0005_silly_serpent_society.sql", import.meta.url), "utf8"),
+  ]);
+  for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "내 예약", "예약됨"]) assert.ok(app.includes(label));
+  assert.match(createRoute, /requireUser\(request, "teacher"\)/);
+  assert.match(actionRoute, /student_id IS NULL/);
+  assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
+  assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
+  assert.match(schema, /appointment_slots/);
+  assert.match(migration, /CREATE TABLE `appointment_slots`/);
+  assert.match(migration, /appointment_slots_teacher_datetime_unique/);
 });

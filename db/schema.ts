@@ -87,3 +87,17 @@ export const attachments = sqliteTable("attachments", {
   uploadedBy: text("uploaded_by").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [uniqueIndex("attachments_r2_key_unique").on(table.r2Key), index("attachments_owner_idx").on(table.ownerType, table.ownerId)]);
+
+export const appointmentSlots = sqliteTable("appointment_slots", {
+  id: text("id").primaryKey(),
+  teacherId: text("teacher_id").notNull(),
+  date: text("date").notNull(),
+  time: text("time").notNull(),
+  studentId: text("student_id"),
+  reservedAt: text("reserved_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("appointment_slots_teacher_datetime_unique").on(table.teacherId, table.date, table.time),
+  index("appointment_slots_teacher_date_idx").on(table.teacherId, table.date),
+  index("appointment_slots_student_idx").on(table.studentId, table.date),
+]);
