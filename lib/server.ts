@@ -11,6 +11,7 @@ type RuntimeEnv = {
 export type SessionUser = User;
 const COOKIE_NAME = "damda_session";
 const SESSION_DAYS = 30;
+const PBKDF2_ITERATIONS = 100_000;
 
 export function runtimeEnv(): RuntimeEnv {
   return env as unknown as RuntimeEnv;
@@ -34,7 +35,7 @@ export async function sha256(value: string) {
 
 export async function hashPassword(password: string, salt = randomHex(16)) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: fromHex(salt), iterations: 120_000 }, key, 256);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: fromHex(salt), iterations: PBKDF2_ITERATIONS }, key, 256);
   return { hash: toHex(new Uint8Array(bits)), salt };
 }
 

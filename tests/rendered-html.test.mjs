@@ -41,6 +41,8 @@ test("keeps authentication and record authorization on the server", async () => 
     readFile(new URL("../app/api/attachments/[id]/route.ts", import.meta.url), "utf8"),
   ]);
   assert.match(server, /PBKDF2/);
+  assert.match(server, /PBKDF2_ITERATIONS = 100_000/);
+  assert.doesNotMatch(server, /120_000/);
   assert.match(server, /HttpOnly; Secure; SameSite=Lax/);
   assert.match(server, /TEACHER_IDS/);
   assert.match(dashboard, /student_id = \?/);
