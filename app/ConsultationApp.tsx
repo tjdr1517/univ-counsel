@@ -186,10 +186,10 @@ function AnnouncementsPage({ user, announcements, onNew }: { user: User; announc
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="modal-scrim"><section className="modal" role="dialog" aria-modal="true"><header><h2>{title}</h2><button className="icon-button" onClick={onClose}><X /></button></header>{children}</section></div>; }
 
-async function uploadFiles(ownerType: string, ownerId: string, files: FileList | null) {
-  if (!files?.length) return;
+async function uploadFiles(ownerType: string, ownerId: string, files: File[]) {
+  if (!files.length) return;
   const form = new FormData(); form.set("ownerType", ownerType); form.set("ownerId", ownerId);
-  Array.from(files).forEach(file => form.append("files", file));
+  files.forEach(file => form.append("files", file));
   await api("/api/attachments", { method: "POST", body: form });
 }
 
@@ -197,7 +197,7 @@ function FileField() { return <label className="file-field"><Upload /><span><str
 
 function RecordModal({ students, onClose, onSaved }: { students: User[]; onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false); const [error, setError] = useState("");
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget); try { const result = await api<{ id: string }>("/api/consultations", { method: "POST", body: JSON.stringify({ studentId: form.get("studentId"), date: form.get("date"), topic: form.get("topic"), summary: form.get("summary") }) }); await uploadFiles("consultation", result.id, (event.currentTarget.elements.namedItem("files") as HTMLInputElement).files); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "저장하지 못했습니다."); setSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); const files = Array.from((formElement.elements.namedItem("files") as HTMLInputElement | null)?.files ?? []); try { const result = await api<{ id: string }>("/api/consultations", { method: "POST", body: JSON.stringify({ studentId: form.get("studentId"), date: form.get("date"), topic: form.get("topic"), summary: form.get("summary") }) }); await uploadFiles("consultation", result.id, files); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "저장하지 못했습니다."); setSaving(false); } };
   return <Modal title="새 상담 기록" onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="field-row"><label>학생<select name="studentId" required defaultValue=""><option value="" disabled>학생 선택</option>{students.map(s => <option key={s.id} value={s.id}>{s.studentNumber}번 · {s.name}</option>)}</select></label><label>상담 일자<input name="date" type="date" required defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} /></label></div><label>상담 주제<input name="topic" required placeholder="예: 7월 진로 상담" /></label><label>상담 내용<textarea name="summary" required rows={8} placeholder="학생과 나눈 이야기, 확인한 내용, 다음 상담 전까지 할 일을 자유롭게 기록하세요." /></label><FileField />{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving || !students.length}>{saving ? "저장 중…" : "기록 저장"}</button></div></form></Modal>;
 }
 
@@ -209,6 +209,6 @@ function InterestModal({ user, students, onClose, onSaved }: { user: User; stude
 
 function NoticeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false); const [error, setError] = useState("");
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); const form = new FormData(event.currentTarget); try { const result = await api<{ id: string }>("/api/announcements", { method: "POST", body: JSON.stringify({ title: form.get("title"), body: form.get("body"), category: form.get("category"), isPinned: form.get("isPinned") === "on" }) }); await uploadFiles("announcement", result.id, (event.currentTarget.elements.namedItem("files") as HTMLInputElement).files); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "게시하지 못했습니다."); setSaving(false); } };
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const formElement = event.currentTarget; const form = new FormData(formElement); const files = Array.from((formElement.elements.namedItem("files") as HTMLInputElement | null)?.files ?? []); try { const result = await api<{ id: string }>("/api/announcements", { method: "POST", body: JSON.stringify({ title: form.get("title"), body: form.get("body"), category: form.get("category"), isPinned: form.get("isPinned") === "on" }) }); await uploadFiles("announcement", result.id, files); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "게시하지 못했습니다."); setSaving(false); } };
   return <Modal title="새 공지 작성" onClose={onClose}><form className="modal-form" onSubmit={submit}><label>분류<select name="category"><option>입시 일정</option><option>자료</option><option>상담</option><option>기타</option></select></label><label>제목<input name="title" required /></label><label>내용<textarea name="body" rows={7} required /></label><label className="toggle-label"><input name="isPinned" type="checkbox" />중요 공지로 표시</label><FileField />{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving}>{saving ? "게시 중…" : "공지 게시"}</button></div></form></Modal>;
 }
