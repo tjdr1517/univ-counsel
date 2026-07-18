@@ -42,6 +42,7 @@ test("keeps authentication and record authorization on the server", async () => 
   ]);
   assert.match(server, /PBKDF2/);
   assert.match(server, /HttpOnly; Secure; SameSite=Lax/);
+  assert.match(server, /TEACHER_IDS/);
   assert.match(dashboard, /student_id = \?/);
   assert.match(dashboard, /teacher_id = \?/);
   assert.match(consultations, /teacher_id=\?/);

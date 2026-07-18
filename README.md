@@ -11,4 +11,4 @@
 - 공지 및 상담 기록 파일 첨부
 - Cloudflare D1 데이터베이스와 R2 파일 저장소
 
-최초 교사 계정은 운영 환경의 `INITIAL_TEACHER_ID`와 `TEACHER_SETUP_CODE`를 사용해 만듭니다.
+교사 계정은 운영 환경의 `TEACHER_IDS` 허용 목록과 `TEACHER_SETUP_CODE`를 사용해 만듭니다.

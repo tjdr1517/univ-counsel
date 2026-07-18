@@ -4,7 +4,7 @@ import type { User } from "./types";
 type RuntimeEnv = {
   DB: D1Database;
   FILES: R2Bucket;
-  INITIAL_TEACHER_ID?: string;
+  TEACHER_IDS?: string;
   TEACHER_SETUP_CODE?: string;
 };
 

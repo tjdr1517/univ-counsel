@@ -13,9 +13,9 @@ export async function POST(request: Request) {
   const runtime = runtimeEnv();
   let status: "pending" | "approved" = "pending";
   if (role === "teacher") {
-    const initialTeacherId = normalizeUsername(runtime.INITIAL_TEACHER_ID);
+    const teacherIds = String(runtime.TEACHER_IDS ?? "").split(",").map(normalizeUsername).filter(Boolean);
     const setupCode = String(input.setupCode ?? "").trim();
-    if (!initialTeacherId || username !== initialTeacherId || !runtime.TEACHER_SETUP_CODE || !timingSafeEqual(setupCode, runtime.TEACHER_SETUP_CODE)) {
+    if (!teacherIds.includes(username) || !runtime.TEACHER_SETUP_CODE || !timingSafeEqual(setupCode, runtime.TEACHER_SETUP_CODE)) {
       return jsonError("교사 아이디 또는 개설 코드가 올바르지 않습니다.", 403);
     }
     status = "approved";
