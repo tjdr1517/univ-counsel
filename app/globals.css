@@ -119,7 +119,7 @@ button { color:inherit; }
   .modal>header{padding-top:20px}.modal>header:before{content:"";position:absolute;top:8px;left:50%;width:38px;height:4px;border-radius:2px;background:#d5d1c9;transform:translateX(-50%)}
   .modal-form{gap:14px;padding-bottom:max(24px,env(safe-area-inset-bottom))}
   .modal-form input,.modal-form select,.modal-form textarea{font-size:16px}
-  .help-popover{left:auto;right:-8px;top:26px;width:185px;transform:none}
+  .help-popover{left:-68px;right:auto;top:26px;width:min(220px,calc(100vw - 56px));transform:none}
   .modal-actions{position:sticky;bottom:0;margin:5px -18px -24px;padding:14px 18px max(14px,env(safe-area-inset-bottom));background:#fbfaf8}
   .modal-actions .primary-button{flex:1}
 }
