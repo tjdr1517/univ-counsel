@@ -75,7 +75,8 @@ test("separates counseling notes from researched universities", async () => {
     readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
   ]);
-  for (const label of ["관심 대학", "대학", "학과", "전형", "수능 최저", "내신 등급", "2023년 커트라인", "2024년 커트라인", "2025년 커트라인", "지망 순위", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  for (const label of ["관심 대학", "대학", "학과", "전형", "수능 최저", "내신 등급", "2023년 입결", "2024년 입결", "2025년 입결", "지망 순위", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  assert.doesNotMatch(app, /커트라인|2023 커트|2024 커트|2025 커트/);
   assert.doesNotMatch(app, /setPlans|emptyPlan/);
   assert.doesNotMatch(consultations, /input\.plans|normalizedPlans/);
   assert.match(interests, /interest_universities/);
