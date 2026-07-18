@@ -72,7 +72,10 @@ test("separates counseling notes from researched universities", async () => {
   assert.match(app, /\/api\/interests/);
   assert.match(app, /\/api\/attachments/);
   assert.doesNotMatch(app, /event\.currentTarget\.elements/);
-  assert.match(app, /const files = Array\.from\(\(formElement\.elements\.namedItem\("files"\)/);
+  assert.doesNotMatch(app, /formElement\.elements/);
+  assert.match(app, /form\.getAll\("files"\)/);
+  assert.match(app, /type="submit" className="primary-button" disabled=\{saving\}/);
+  assert.match(app, /공지는 게시했지만 첨부 파일은 올리지 못했습니다/);
   assert.match(app, /student-filter/);
   assert.match(app, /학생별 관심 대학/);
   assert.match(app, /interests\.filter\(item => item\.studentId === studentId\)/);
