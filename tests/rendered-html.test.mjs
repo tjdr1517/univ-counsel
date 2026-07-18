@@ -68,6 +68,9 @@ test("separates counseling notes from researched universities", async () => {
   assert.match(interests, /student_id/);
   assert.match(app, /\/api\/interests/);
   assert.match(app, /\/api\/attachments/);
+  assert.match(app, /student-filter/);
+  assert.match(app, /학생별 관심 대학/);
+  assert.match(app, /interests\.filter\(item => item\.studentId === studentId\)/);
 });
 
 test("removes every Firebase project artifact and keeps responsive CSS", async () => {
