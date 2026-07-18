@@ -83,6 +83,9 @@ test("removes every Firebase project artifact and keeps responsive CSS", async (
   const [pkg, css] = await Promise.all([readFile(new URL("../package.json", import.meta.url), "utf8"), readFile(new URL("../app/globals.css", import.meta.url), "utf8")]);
   assert.doesNotMatch(pkg, /firebase/i);
   assert.match(css, /@media\(max-width:720px\)|@media \(max-width:720px\)/);
+  assert.match(css, /\.interest-card header\{position:relative/);
+  assert.match(css, /\.interest-card dl\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(css, /\.modal-scrim\{align-items:flex-end/);
   for (const path of ["lib/firebase.ts", "firebase.json", "firestore.rules", "firestore.indexes.json"]) await assert.rejects(access(new URL(`../${path}`, import.meta.url)));
   assert.ok(root);
 });
