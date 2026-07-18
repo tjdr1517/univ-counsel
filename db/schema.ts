@@ -3,7 +3,8 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
-  email: text("email").notNull(),
+  // The deployed D1 column keeps its original name for migration compatibility.
+  username: text("email").notNull(),
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
   passwordSalt: text("password_salt").notNull(),
@@ -16,7 +17,7 @@ export const users = sqliteTable("users", {
   approvedAt: text("approved_at"),
   approvedBy: text("approved_by"),
 }, (table) => [
-  uniqueIndex("users_email_unique").on(table.email),
+  uniqueIndex("users_email_unique").on(table.username),
   index("users_status_idx").on(table.status),
   index("users_teacher_idx").on(table.teacherId),
 ]);

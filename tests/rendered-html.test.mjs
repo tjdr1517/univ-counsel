@@ -4,7 +4,7 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("renders the Korean email login experience", async () => {
+test("renders the Korean username login experience", async () => {
   const [layout, app] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
@@ -13,7 +13,9 @@ test("renders the Korean email login experience", async () => {
   assert.match(layout, /담다 \| 대입 상담 기록/);
   assert.match(app, /로그인/);
   assert.match(app, /계정 만들기/);
-  assert.doesNotMatch(app, /Google 계정|firebase/i);
+  assert.match(app, /아이디와 비밀번호/);
+  assert.match(app, /name="username"/);
+  assert.doesNotMatch(app, /type="email"|Google 계정|firebase/i);
 });
 
 test("uses D1 and R2 with generated migrations", async () => {

@@ -3,7 +3,7 @@ export type AccountStatus = "pending" | "approved" | "rejected";
 
 export type User = {
   id: string;
-  email: string;
+  username: string;
   name: string;
   role: Role;
   status: AccountStatus;

@@ -4,7 +4,7 @@ import type { User } from "./types";
 type RuntimeEnv = {
   DB: D1Database;
   FILES: R2Bucket;
-  INITIAL_TEACHER_EMAIL?: string;
+  INITIAL_TEACHER_ID?: string;
   TEACHER_SETUP_CODE?: string;
 };
 
@@ -40,7 +40,7 @@ export async function hashPassword(password: string, salt = randomHex(16)) {
 
 export function safeUser(row: Record<string, unknown>): User {
   return {
-    id: String(row.id), email: String(row.email), name: String(row.name),
+    id: String(row.id), username: String(row.email), name: String(row.name),
     role: row.role as User["role"], status: row.status as User["status"],
     teacherId: row.teacher_id ? String(row.teacher_id) : null,
     grade: row.grade == null ? null : Number(row.grade),
@@ -91,7 +91,7 @@ export function jsonError(message: string, status = 400) {
   return Response.json({ error: message }, { status });
 }
 
-export function normalizeEmail(value: unknown) {
+export function normalizeUsername(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
