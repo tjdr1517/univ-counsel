@@ -14,7 +14,10 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value.includes("T") ? value : `${value}T00:00:00`));
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!parts) return value;
+  const [, year, month, day] = parts;
+  return new Intl.DateTimeFormat("ko-KR", { year: "numeric", month: "long", day: "numeric" }).format(new Date(Number(year), Number(month) - 1, Number(day)));
 }
 
 function fileSize(bytes: number) {
