@@ -20,6 +20,7 @@ export type InterestUniversity = {
   university: string;
   department: string;
   track: string;
+  evaluationFactors: string;
   minimum: string;
   schoolGrade: string;
   cutoff2023: string;

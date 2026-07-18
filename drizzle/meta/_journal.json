@@ -29,6 +29,13 @@
       "when": 1784337242485,
       "tag": "0003_gigantic_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784343601773,
+      "tag": "0004_glamorous_shaman",
+      "breakpoints": true
     }
   ]
 }

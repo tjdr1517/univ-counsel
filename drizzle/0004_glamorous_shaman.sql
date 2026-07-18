@@ -1,0 +1,1 @@
+ALTER TABLE `interest_universities` ADD `evaluation_factors` text DEFAULT '' NOT NULL;

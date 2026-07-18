@@ -32,7 +32,7 @@ export async function GET(request: Request) {
   }));
   const interests: InterestUniversity[] = interestResult.results.map((row: Record<string, unknown>) => ({
     id: String(row.id), teacherId: String(row.teacher_id), studentId: String(row.student_id), studentName: String(row.student_name),
-    university: String(row.university), department: String(row.department), track: String(row.track), minimum: String(row.minimum),
+    university: String(row.university), department: String(row.department), track: String(row.track), evaluationFactors: String(row.evaluation_factors ?? ""), minimum: String(row.minimum),
     schoolGrade: String(row.school_grade ?? ""), cutoff2023: String(row.cutoff_2023 ?? ""), cutoff2024: String(row.cutoff_2024 ?? ""), cutoff2025: String(row.cutoff_2025 ?? ""),
     priority: Number(row.priority ?? 999), memo: String(row.memo), createdAt: String(row.created_at),
   }));
