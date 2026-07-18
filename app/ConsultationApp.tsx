@@ -2,9 +2,9 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Bell, Check, ChevronRight, ClipboardList, FileText, GraduationCap, Home, LogOut, Menu, Megaphone, Paperclip, Plus, Search, ShieldCheck, Upload, Users, X } from "lucide-react";
-import type { AdmissionPlan, Announcement, Attachment, Consultation, DashboardData, Role, User } from "../lib/types";
+import type { Announcement, Attachment, Consultation, DashboardData, InterestUniversity, Role, User } from "../lib/types";
 
-type View = "home" | "records" | "students" | "announcements";
+type View = "home" | "records" | "interests" | "students" | "announcements";
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...init, headers: init?.body instanceof FormData ? init.headers : { "Content-Type": "application/json", ...init?.headers } });
@@ -30,6 +30,7 @@ export default function ConsultationApp() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Consultation | null>(null);
   const [recordModal, setRecordModal] = useState(false);
+  const [interestModal, setInterestModal] = useState(false);
   const [noticeModal, setNoticeModal] = useState(false);
   const [toast, setToast] = useState("");
 
@@ -54,7 +55,12 @@ export default function ConsultationApp() {
   const records = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     const rows = data?.consultations ?? [];
-    return keyword ? rows.filter(row => `${row.studentName} ${row.topic} ${row.summary} ${row.plans.map(p => Object.values(p).join(" ")).join(" ")}`.toLowerCase().includes(keyword)) : rows;
+    return keyword ? rows.filter(row => `${row.studentName} ${row.topic} ${row.summary}`.toLowerCase().includes(keyword)) : rows;
+  }, [data, search]);
+  const interests = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    const rows = data?.interests ?? [];
+    return keyword ? rows.filter(row => `${row.studentName} ${row.university} ${row.department} ${row.track} ${row.minimum} ${row.memo}`.toLowerCase().includes(keyword)) : rows;
   }, [data, search]);
 
   if (checking) return <div className="center-state"><div className="spinner" /><p>계정을 확인하고 있습니다.</p></div>;
@@ -73,6 +79,7 @@ export default function ConsultationApp() {
       <nav className="nav-list">
         <Nav active={view === "home"} icon={<Home />} label="홈" onClick={() => navigate("home")} />
         <Nav active={view === "records"} icon={<ClipboardList />} label="상담 기록" badge={records.length} onClick={() => navigate("records")} />
+        <Nav active={view === "interests"} icon={<GraduationCap />} label="관심 대학" badge={interests.length} onClick={() => navigate("interests")} />
         {user.role === "teacher" && <Nav active={view === "students"} icon={<Users />} label="학생 관리" badge={data.pendingStudents.length || data.students.length} onClick={() => navigate("students")} />}
         <Nav active={view === "announcements"} icon={<Megaphone />} label="공지 · 정보" onClick={() => navigate("announcements")} />
       </nav>
@@ -84,11 +91,13 @@ export default function ConsultationApp() {
       <div className="page-wrap">
         {view === "home" && <HomePage user={user} data={data} records={records} onView={navigate} onNew={() => setRecordModal(true)} onSelect={record => { setSelected(record); setView("records"); }} />}
         {view === "records" && <RecordsPage user={user} records={records} selected={selected} onSelect={setSelected} onBack={() => setSelected(null)} onNew={() => setRecordModal(true)} />}
+        {view === "interests" && <InterestsPage interests={interests} onNew={() => setInterestModal(true)} />}
         {view === "students" && <StudentsPage data={data} onApprove={async id => { await api(`/api/users/${id}/approve`, { method: "POST" }); notify("학생 계정을 승인했습니다."); }} />}
         {view === "announcements" && <AnnouncementsPage user={user} announcements={data.announcements} onNew={() => setNoticeModal(true)} />}
       </div>
     </main>
     {recordModal && <RecordModal students={data.students} onClose={() => setRecordModal(false)} onSaved={() => { setRecordModal(false); notify("상담 기록을 저장했습니다."); }} />}
+    {interestModal && <InterestModal user={user} students={data.students} onClose={() => setInterestModal(false)} onSaved={() => { setInterestModal(false); notify("관심 대학을 저장했습니다."); }} />}
     {noticeModal && <NoticeModal onClose={() => setNoticeModal(false)} onSaved={() => { setNoticeModal(false); notify("공지를 게시했습니다."); }} />}
     {toast && <div className="toast"><Check size={17} />{toast}</div>}
   </div>;
@@ -135,8 +144,8 @@ function HomePage({ user, data, records, onView, onNew, onSelect }: { user: User
   const teacher = user.role === "teacher";
   return <><div className="page-heading"><div><span className="eyebrow">TODAY&apos;S COUNSELING</span><h1>{user.name}님, 안녕하세요.</h1><p>{teacher ? "학생의 지원 전략과 상담 과정을 차곡차곡 기록하세요." : "선생님과 함께 정리한 지원 전략을 확인하세요."}</p></div>{teacher && <button className="primary-button" onClick={onNew}><Plus size={17} />새 상담 기록</button>}</div>
     {teacher && data.pendingStudents.length > 0 && <button className="approval-banner" onClick={() => onView("students")}><ShieldCheck /><span><strong>승인 대기 학생 {data.pendingStudents.length}명</strong><small>학생 관리에서 가입을 승인해 주세요.</small></span><ChevronRight /></button>}
-    <div className="stats-grid"><Stat icon={<Users />} label={teacher ? "담당 학생" : "나의 상담"} value={teacher ? `${data.students.length}명` : `${records.length}건`} /><Stat icon={<ClipboardList />} label="상담 기록" value={`${records.length}건`} /><Stat icon={<GraduationCap />} label="지원 대학" value={`${new Set(records.flatMap(row => row.plans.map(plan => plan.university))).size}곳`} /></div>
-    <div className="content-grid"><section className="card"><div className="card-header"><h2><ClipboardList />최근 상담</h2><button onClick={() => onView("records")}>전체 보기 <ChevronRight /></button></div><div className="record-list">{records.slice(0, 5).map(row => <button className="record-row" key={row.id} onClick={() => onSelect(row)}><span className="date-tile"><strong>{row.date.slice(8)}</strong><small>{row.date.slice(5, 7)}월</small></span><span className="record-copy"><strong>{row.topic}</strong><small>{row.studentName} · {row.plans.map(p => p.university).join(", ")}</small></span><ChevronRight /></button>)}{!records.length && <Empty text="아직 상담 기록이 없습니다." />}</div></section>
+    <div className="stats-grid"><Stat icon={<Users />} label={teacher ? "담당 학생" : "나의 상담"} value={teacher ? `${data.students.length}명` : `${records.length}건`} /><Stat icon={<ClipboardList />} label="상담 기록" value={`${records.length}건`} /><Stat icon={<GraduationCap />} label="관심 대학" value={`${new Set(data.interests.map(item => item.university)).size}곳`} /></div>
+    <div className="content-grid"><section className="card"><div className="card-header"><h2><ClipboardList />최근 상담</h2><button onClick={() => onView("records")}>전체 보기 <ChevronRight /></button></div><div className="record-list">{records.slice(0, 5).map(row => <button className="record-row" key={row.id} onClick={() => onSelect(row)}><span className="date-tile"><strong>{row.date.slice(8)}</strong><small>{row.date.slice(5, 7)}월</small></span><span className="record-copy"><strong>{row.topic}</strong><small>{row.studentName} · {row.summary}</small></span><ChevronRight /></button>)}{!records.length && <Empty text="아직 상담 기록이 없습니다." />}</div></section>
     <section className="card"><div className="card-header"><h2><Megaphone />최근 공지</h2><button onClick={() => onView("announcements")}>전체 보기 <ChevronRight /></button></div><div className="notice-list">{data.announcements.slice(0, 4).map(item => <article key={item.id}><span className="tag">{item.category}</span><div><strong>{item.title}</strong><p>{item.body}</p></div></article>)}{!data.announcements.length && <Empty text="등록된 공지가 없습니다." />}</div></section></div></>;
 }
 
@@ -145,7 +154,7 @@ function Empty({ text }: { text: string }) { return <div className="empty-state"
 
 function RecordsPage({ user, records, selected, onSelect, onBack, onNew }: { user: User; records: Consultation[]; selected: Consultation | null; onSelect: (record: Consultation) => void; onBack: () => void; onNew: () => void }) {
   if (selected) return <RecordDetail record={selected} onBack={onBack} />;
-  return <><div className="section-heading"><div><span className="eyebrow">COUNSELING LOG</span><h1>상담 기록</h1><p>학교·학과·전형별 지원 전략과 상담 내용을 확인합니다.</p></div>{user.role === "teacher" && <button className="primary-button" onClick={onNew}><Plus size={17} />상담 기록 추가</button>}</div><section className="card table-card"><div className="table-head"><span>일자</span><span>학생</span><span>상담 주제</span><span>지원 대학</span><span /></div>{records.map(row => <button className="table-row" key={row.id} onClick={() => onSelect(row)}><span>{row.date}</span><span>{row.studentName}</span><strong>{row.topic}</strong><span>{row.plans.map(plan => plan.university).join(", ")}</span><ChevronRight /></button>)}{!records.length && <Empty text="아직 상담 기록이 없습니다." />}</section></>;
+  return <><div className="section-heading"><div><span className="eyebrow">COUNSELING LOG</span><h1>상담 기록</h1><p>학생과 나눈 실제 상담 내용과 후속 행동을 기록합니다.</p></div>{user.role === "teacher" && <button className="primary-button" onClick={onNew}><Plus size={17} />상담 기록 추가</button>}</div><section className="card table-card"><div className="table-head"><span>일자</span><span>학생</span><span>상담 주제</span><span>상담 내용</span><span /></div>{records.map(row => <button className="table-row" key={row.id} onClick={() => onSelect(row)}><span>{row.date}</span><span>{row.studentName}</span><strong>{row.topic}</strong><span>{row.summary}</span><ChevronRight /></button>)}{!records.length && <Empty text="아직 상담 기록이 없습니다." />}</section></>;
 }
 
 function Attachments({ files }: { files: Attachment[] }) {
@@ -154,7 +163,7 @@ function Attachments({ files }: { files: Attachment[] }) {
 }
 
 function RecordDetail({ record, onBack }: { record: Consultation; onBack: () => void }) {
-  return <article className="record-detail"><button className="back-button" onClick={onBack}>← 상담 기록</button><div className="detail-title"><span className="page-icon"><ClipboardList /></span><div><span>{formatDate(record.date)} · {record.studentName}</span><h1>{record.topic}</h1></div></div><section><h2>상담 요약</h2><p className="summary-text">{record.summary}</p><Attachments files={record.attachments} /></section><section><h2>지원 전형</h2><div className="plan-grid">{record.plans.map((plan, index) => <article className="plan-card" key={index}><header><span>{String(index + 1).padStart(2, "0")}</span><div><h3>{plan.university}</h3><p>{plan.department}</p></div></header><dl><div><dt>전형</dt><dd>{plan.track}</dd></div><div><dt>수능 최저</dt><dd>{plan.minimum || "없음"}</dd></div><div><dt>메모</dt><dd>{plan.memo || "-"}</dd></div></dl></article>)}</div></section></article>;
+  return <article className="record-detail"><button className="back-button" onClick={onBack}>← 상담 기록</button><div className="detail-title"><span className="page-icon"><ClipboardList /></span><div><span>{formatDate(record.date)} · {record.studentName}</span><h1>{record.topic}</h1></div></div><section><h2>상담 내용</h2><p className="summary-text">{record.summary}</p><Attachments files={record.attachments} /></section></article>;
 }
 
 function StudentsPage({ data, onApprove }: { data: DashboardData; onApprove: (id: string) => Promise<void> }) {
@@ -162,12 +171,15 @@ function StudentsPage({ data, onApprove }: { data: DashboardData; onApprove: (id
   return <><div className="section-heading"><div><span className="eyebrow">STUDENT MANAGEMENT</span><h1>학생 관리</h1><p>가입 신청을 승인하고 우리 반 학생을 확인합니다.</p></div></div>{data.pendingStudents.length > 0 && <section className="approval-section"><h2>승인 대기 <span>{data.pendingStudents.length}</span></h2>{data.pendingStudents.map(student => <article className="approval-row" key={student.id}><span className="student-avatar">{student.name.slice(0, 1)}</span><div><strong>{student.studentNumber ?? "-"}번 · {student.name}</strong><small>@{student.username}</small></div><button className="primary-button" disabled={busy === student.id} onClick={async () => { setBusy(student.id); await onApprove(student.id); setBusy(""); }}>{busy === student.id ? "승인 중…" : "승인"}</button></article>)}</section>}<div className="student-grid">{data.students.map(student => <article className="student-card" key={student.id}><span className="student-avatar">{student.studentNumber ?? "-"}</span><div><h3>{student.name}</h3><p>{student.studentNumber ?? "-"}번</p><small>@{student.username}</small></div></article>)}</div>{!data.students.length && !data.pendingStudents.length && <Empty text="아직 등록된 학생이 없습니다." />}</>;
 }
 
+function InterestsPage({ interests, onNew }: { interests: InterestUniversity[]; onNew: () => void }) {
+  return <><div className="section-heading"><div><span className="eyebrow">UNIVERSITY RESEARCH</span><h1>관심 대학</h1><p>찾아본 대학·학과·전형과 수능 최저 조건을 따로 정리합니다.</p></div><button className="primary-button" onClick={onNew}><Plus size={17} />관심 대학 추가</button></div><div className="interest-grid">{interests.map(item => <article className="interest-card" key={item.id}><header><span className="page-icon"><GraduationCap /></span><div><span>{item.studentName}</span><h2>{item.university}</h2><p>{item.department}</p></div></header><dl><div><dt>전형</dt><dd>{item.track}</dd></div><div><dt>수능 최저</dt><dd>{item.minimum || "없음"}</dd></div><div><dt>메모</dt><dd>{item.memo || "-"}</dd></div></dl></article>)}</div>{!interests.length && <Empty text="아직 관심 대학이 없습니다." />}</>;
+}
+
 function AnnouncementsPage({ user, announcements, onNew }: { user: User; announcements: Announcement[]; onNew: () => void }) {
   return <><div className="section-heading"><div><span className="eyebrow">NOTICE & GUIDE</span><h1>공지 · 입시 정보</h1><p>모든 승인 학생에게 필요한 정보와 자료를 공유합니다.</p></div>{user.role === "teacher" && <button className="primary-button" onClick={onNew}><Plus size={17} />새 글</button>}</div><div className="announcement-grid">{announcements.map(item => <article className={`announcement-card ${item.isPinned ? "pinned" : ""}`} key={item.id}>{item.isPinned && <span className="pin-label">중요</span>}<div className="announcement-meta"><span className="tag">{item.category}</span><span>{item.authorName} · {formatDate(item.publishedAt)}</span></div><h2>{item.title}</h2><p>{item.body}</p><Attachments files={item.attachments} /></article>)}</div>{!announcements.length && <Empty text="등록된 공지가 없습니다." />}</>;
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) { return <div className="modal-scrim"><section className="modal" role="dialog" aria-modal="true"><header><h2>{title}</h2><button className="icon-button" onClick={onClose}><X /></button></header>{children}</section></div>; }
-const emptyPlan = (): AdmissionPlan => ({ university: "", department: "", track: "", minimum: "", memo: "" });
 
 async function uploadFiles(ownerType: string, ownerId: string, files: FileList | null) {
   if (!files?.length) return;
@@ -179,10 +191,15 @@ async function uploadFiles(ownerType: string, ownerId: string, files: FileList |
 function FileField() { return <label className="file-field"><Upload /><span><strong>파일 또는 이미지 첨부</strong><small>최대 10개, 파일당 10MB</small></span><input name="files" type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.hwp" /></label>; }
 
 function RecordModal({ students, onClose, onSaved }: { students: User[]; onClose: () => void; onSaved: () => void }) {
-  const [plans, setPlans] = useState<AdmissionPlan[]>([emptyPlan()]); const [saving, setSaving] = useState(false); const [error, setError] = useState("");
-  const update = (index: number, key: keyof AdmissionPlan, value: string) => setPlans(current => current.map((plan, i) => i === index ? { ...plan, [key]: value } : plan));
-  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget); try { const result = await api<{ id: string }>("/api/consultations", { method: "POST", body: JSON.stringify({ studentId: form.get("studentId"), date: form.get("date"), topic: form.get("topic"), summary: form.get("summary"), plans }) }); await uploadFiles("consultation", result.id, form.getAll("files").length ? (event.currentTarget.elements.namedItem("files") as HTMLInputElement).files : null); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "저장하지 못했습니다."); setSaving(false); } };
-  return <Modal title="새 상담 기록" onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="field-row"><label>학생<select name="studentId" required defaultValue=""><option value="" disabled>학생 선택</option>{students.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label>상담 일자<input name="date" type="date" required defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} /></label></div><label>상담 주제<input name="topic" required placeholder="예: 수시 지원 전략 2차 점검" /></label><label>상담 요약<textarea name="summary" required rows={4} placeholder="상담 내용과 다음 행동을 기록하세요." /></label>{plans.map((plan, index) => <div className="plan-editor" key={index}><div className="form-divider"><span>지원 전형 {index + 1}</span>{plans.length > 1 && <button type="button" onClick={() => setPlans(current => current.filter((_, i) => i !== index))}>삭제</button>}</div><div className="field-row"><label>학교<input required value={plan.university} onChange={e => update(index, "university", e.target.value)} /></label><label>학과<input required value={plan.department} onChange={e => update(index, "department", e.target.value)} /></label></div><div className="field-row"><label>전형<input required value={plan.track} onChange={e => update(index, "track", e.target.value)} /></label><label>수능 최저<input value={plan.minimum} onChange={e => update(index, "minimum", e.target.value)} placeholder="예: 2개 합 5 / 없음" /></label></div><label>기타 메모<input value={plan.memo} onChange={e => update(index, "memo", e.target.value)} /></label></div>)}<button type="button" className="add-plan-button" onClick={() => setPlans(current => [...current, emptyPlan()])}><Plus />전형 추가</button><FileField />{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving || !students.length}>{saving ? "저장 중…" : "기록 저장"}</button></div></form></Modal>;
+  const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget); try { const result = await api<{ id: string }>("/api/consultations", { method: "POST", body: JSON.stringify({ studentId: form.get("studentId"), date: form.get("date"), topic: form.get("topic"), summary: form.get("summary") }) }); await uploadFiles("consultation", result.id, (event.currentTarget.elements.namedItem("files") as HTMLInputElement).files); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "저장하지 못했습니다."); setSaving(false); } };
+  return <Modal title="새 상담 기록" onClose={onClose}><form className="modal-form" onSubmit={submit}><div className="field-row"><label>학생<select name="studentId" required defaultValue=""><option value="" disabled>학생 선택</option>{students.map(s => <option key={s.id} value={s.id}>{s.studentNumber}번 · {s.name}</option>)}</select></label><label>상담 일자<input name="date" type="date" required defaultValue={new Intl.DateTimeFormat("en-CA").format(new Date())} /></label></div><label>상담 주제<input name="topic" required placeholder="예: 7월 진로 상담" /></label><label>상담 내용<textarea name="summary" required rows={8} placeholder="학생과 나눈 이야기, 확인한 내용, 다음 상담 전까지 할 일을 자유롭게 기록하세요." /></label><FileField />{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving || !students.length}>{saving ? "저장 중…" : "기록 저장"}</button></div></form></Modal>;
+}
+
+function InterestModal({ user, students, onClose, onSaved }: { user: User; students: User[]; onClose: () => void; onSaved: () => void }) {
+  const [saving, setSaving] = useState(false); const [error, setError] = useState("");
+  const submit = async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); setSaving(true); setError(""); const form = new FormData(event.currentTarget); try { await api("/api/interests", { method: "POST", body: JSON.stringify({ studentId: form.get("studentId"), university: form.get("university"), department: form.get("department"), track: form.get("track"), minimum: form.get("minimum"), memo: form.get("memo") }) }); onSaved(); } catch (reason) { setError(reason instanceof Error ? reason.message : "저장하지 못했습니다."); setSaving(false); } };
+  return <Modal title="관심 대학 추가" onClose={onClose}><form className="modal-form" onSubmit={submit}>{user.role === "teacher" && <label>학생<select name="studentId" required defaultValue=""><option value="" disabled>학생 선택</option>{students.map(student => <option key={student.id} value={student.id}>{student.studentNumber}번 · {student.name}</option>)}</select></label>}<div className="field-row"><label>대학<input name="university" required placeholder="대학명" /></label><label>학과<input name="department" required placeholder="학과·계열" /></label></div><div className="field-row"><label>전형<input name="track" required placeholder="예: 학생부종합" /></label><label>수능 최저<input name="minimum" placeholder="예: 2개 합 5 / 없음" /></label></div><label>기타 메모<textarea name="memo" rows={4} placeholder="모집 인원, 전년도 결과, 확인할 내용 등을 기록하세요." /></label>{error && <p className="form-error">{error}</p>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>취소</button><button className="primary-button" disabled={saving || (user.role === "teacher" && !students.length)}>{saving ? "저장 중…" : "관심 대학 저장"}</button></div></form></Modal>;
 }
 
 function NoticeModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {

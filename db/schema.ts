@@ -37,10 +37,27 @@ export const consultations = sqliteTable("consultations", {
   date: text("date").notNull(),
   topic: text("topic").notNull(),
   summary: text("summary").notNull(),
-  plansJson: text("plans_json").notNull().default("[]"),
+  legacyPlansJson: text("plans_json").notNull().default("[]"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("consultations_teacher_date_idx").on(table.teacherId, table.date), index("consultations_student_date_idx").on(table.studentId, table.date)]);
+
+export const interestUniversities = sqliteTable("interest_universities", {
+  id: text("id").primaryKey(),
+  teacherId: text("teacher_id").notNull(),
+  studentId: text("student_id").notNull(),
+  studentName: text("student_name").notNull(),
+  university: text("university").notNull(),
+  department: text("department").notNull(),
+  track: text("track").notNull(),
+  minimum: text("minimum").notNull().default(""),
+  memo: text("memo").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("interest_universities_teacher_idx").on(table.teacherId, table.createdAt),
+  index("interest_universities_student_idx").on(table.studentId, table.createdAt),
+]);
 
 export const announcements = sqliteTable("announcements", {
   id: text("id").primaryKey(),

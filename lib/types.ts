@@ -12,12 +12,17 @@ export type User = {
   createdAt?: string;
 };
 
-export type AdmissionPlan = {
+export type InterestUniversity = {
+  id: string;
+  teacherId: string;
+  studentId: string;
+  studentName: string;
   university: string;
   department: string;
   track: string;
   minimum: string;
   memo: string;
+  createdAt: string;
 };
 
 export type Attachment = {
@@ -35,7 +40,6 @@ export type Consultation = {
   date: string;
   topic: string;
   summary: string;
-  plans: AdmissionPlan[];
   attachments: Attachment[];
 };
 
@@ -54,6 +58,7 @@ export type Announcement = {
 export type DashboardData = {
   user: User;
   consultations: Consultation[];
+  interests: InterestUniversity[];
   announcements: Announcement[];
   students: User[];
   pendingStudents: User[];

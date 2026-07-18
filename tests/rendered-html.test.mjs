@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../", import.meta.url);
@@ -21,14 +21,15 @@ test("renders the Korean username login experience", async () => {
 });
 
 test("uses D1 and R2 with generated migrations", async () => {
-  const [hosting, schema, migration] = await Promise.all([
+  const [hosting, schema, migrationFiles] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0000_even_phalanx.sql", import.meta.url), "utf8"),
+    readdir(new URL("../drizzle/", import.meta.url)),
   ]);
+  const migration = (await Promise.all(migrationFiles.filter(file => file.endsWith(".sql")).map(file => readFile(new URL(`../drizzle/${file}`, import.meta.url), "utf8")))).join("\n");
   assert.match(hosting, /"d1": "DB"/);
   assert.match(hosting, /"r2": "FILES"/);
-  for (const table of ["users", "sessions", "consultations", "announcements", "attachments"]) {
+  for (const table of ["users", "sessions", "consultations", "interest_universities", "announcements", "attachments"]) {
     assert.ok(schema.includes(`sqliteTable("${table}"`));
     assert.ok(migration.includes("CREATE TABLE `" + table + "`"));
   }
@@ -54,10 +55,18 @@ test("keeps authentication and record authorization on the server", async () => 
   assert.match(attachments, /canAccessOwner/);
 });
 
-test("supports all requested admissions fields and uploads", async () => {
-  const app = await readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8");
-  for (const label of ["상담 일자", "학교", "학과", "전형", "수능 최저", "기타 메모", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
-  assert.match(app, /setPlans\(current => \[\.\.\.current, emptyPlan\(\)\]\)/);
+test("separates counseling notes from researched universities", async () => {
+  const [app, consultations, interests] = await Promise.all([
+    readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/consultations/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/interests/route.ts", import.meta.url), "utf8"),
+  ]);
+  for (const label of ["관심 대학", "대학", "학과", "전형", "수능 최저", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  assert.doesNotMatch(app, /setPlans|emptyPlan/);
+  assert.doesNotMatch(consultations, /input\.plans|normalizedPlans/);
+  assert.match(interests, /interest_universities/);
+  assert.match(interests, /student_id/);
+  assert.match(app, /\/api\/interests/);
   assert.match(app, /\/api\/attachments/);
 });
 

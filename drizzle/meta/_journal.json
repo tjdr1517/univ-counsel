@@ -15,6 +15,13 @@
       "when": 1784334260478,
       "tag": "0001_migrate_teacher_username",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1784336093310,
+      "tag": "0002_short_nico_minoru",
+      "breakpoints": true
     }
   ]
 }
