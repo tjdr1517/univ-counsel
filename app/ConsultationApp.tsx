@@ -73,10 +73,12 @@ export default function ConsultationApp() {
   }, []);
 
   useEffect(() => {
-    api<{ user: User }>("/api/auth/me").then(({ user }) => {
-      setUser(user);
-      if (user.status === "approved") return refresh();
-    }).catch(() => setUser(null)).finally(() => setChecking(false));
+    api<DashboardData>("/api/dashboard").then(next => {
+      setData(next); setUser(next.user);
+    }).catch(async () => {
+      try { const { user } = await api<{ user: User }>("/api/auth/me"); setUser(user); }
+      catch { setUser(null); }
+    }).finally(() => setChecking(false));
   }, []);
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function ConsultationApp() {
     return keyword ? rows.filter(row => `${row.studentName} ${row.university} ${row.department} ${row.track} ${row.minimum} ${row.memo}`.toLowerCase().includes(keyword)) : rows;
   }, [data, search]);
 
-  if (checking) return <div className="center-state"><div className="spinner" /><p>계정을 확인하고 있습니다.</p></div>;
+  if (checking) return <div className="center-state" role="status" aria-label="앱 불러오는 중"><div className="spinner" /></div>;
   if (!user) return <AuthScreen onAuthenticated={next => { setUser(next); if (next.status === "approved") refresh().catch(() => undefined); }} />;
   if (user.status !== "approved") return <ApprovalWaiting user={user} onLogout={async () => { await api("/api/auth/logout", { method: "POST" }); setUser(null); }} />;
   if (!data) return <div className="center-state"><div className="spinner" /><p>상담 기록을 불러오고 있습니다.</p></div>;

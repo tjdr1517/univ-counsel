@@ -20,6 +20,8 @@ test("renders the Korean username login experience", async () => {
   assert.match(app, /window\.history\.replaceState/);
   assert.match(app, /addEventListener\("popstate"/);
   assert.match(app, /window\.location\.hash/);
+  assert.match(app, /api<DashboardData>\("\/api\/dashboard"\)\.then/);
+  assert.doesNotMatch(app, /계정을 확인하고 있습니다/);
   assert.doesNotMatch(app, /name="grade"|name="classNumber"/);
   assert.doesNotMatch(app, /type="email"|Google 계정|firebase/i);
 });
