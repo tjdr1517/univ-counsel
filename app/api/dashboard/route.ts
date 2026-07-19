@@ -11,6 +11,11 @@ function attachmentMap(rows: Record<string, unknown>[]) {
   return map;
 }
 
+function appointmentLabel(value: unknown) {
+  const raw = String(value);
+  return raw.startsWith("period:") ? `${Number(raw.slice(7))}교시` : raw;
+}
+
 export async function GET(request: Request) {
   const auth = await requireUser(request);
   if ("error" in auth) return auth.error;
@@ -43,7 +48,7 @@ export async function GET(request: Request) {
     category: String(row.category), isPinned: Boolean(row.is_pinned), publishedAt: String(row.published_at), attachments: files.get(String(row.id)) ?? [],
   }));
   const appointments: AppointmentSlot[] = appointmentResult.results.map((row: Record<string, unknown>) => ({
-    id: String(row.id), teacherId: String(row.teacher_id), date: String(row.date), time: String(row.time),
+    id: String(row.id), teacherId: String(row.teacher_id), date: String(row.date), time: appointmentLabel(row.time),
     status: row.student_id ? "reserved" : "available", isMine: Boolean(row.student_id && row.student_id === user.id),
     bookingStatus: (row.student_id ? String(row.booking_status ?? "confirmed") : "available") as AppointmentSlot["bookingStatus"],
     ...(user.role === "teacher" && row.student_id ? { studentName: String(row.reserved_name ?? ""), studentNumber: row.reserved_number == null ? null : Number(row.reserved_number) } : {}),

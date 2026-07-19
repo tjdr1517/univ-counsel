@@ -132,8 +132,13 @@ test("keeps counseling appointments private and race-safe", async () => {
   for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "승인 대기", "예약 확정", "예약됨"]) assert.ok(app.includes(label));
   assert.match(app, /appointment-calendar-layout/);
   assert.match(app, /time-picker-grid/);
-  assert.match(app, /여러 시간을 한 번에 선택할 수 있어요/);
+  assert.match(app, /여러 개를 한 번에 선택할 수 있어요/);
+  assert.match(app, /시간으로 등록/);
+  assert.match(app, /교시로 등록/);
+  assert.match(app, /period-picker-grid/);
   assert.match(createRoute, /input\.times/);
+  assert.match(createRoute, /input\.periods/);
+  assert.match(createRoute, /period:/);
   assert.match(createRoute, /db\.batch/);
   assert.match(app, /calendar-weekdays/);
   assert.match(app, /calendar-day/);
@@ -148,6 +153,7 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(actionRoute, /학생이 담다에서 취소했습니다/);
   assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
   assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
+  assert.match(dashboard, /교시/);
   assert.match(schema, /appointment_slots/);
   assert.match(migration, /CREATE TABLE `appointment_slots`/);
   assert.match(migration, /appointment_slots_teacher_datetime_unique/);

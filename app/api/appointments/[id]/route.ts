@@ -2,6 +2,10 @@ import { jsonError, requireUser, runtimeEnv } from "../../../../lib/server";
 
 type SlotRow = { id: string; teacher_id: string; student_id: string | null; booking_status: string; date: string; time: string };
 
+function slotLabel(value: string) {
+  return value.startsWith("period:") ? `${Number(value.slice(7))}교시` : value;
+}
+
 async function notifyTeacher(teacherId: string, message: string) {
   const settings = await runtimeEnv().DB.prepare("SELECT notifications_enabled,discord_webhook_url FROM teacher_settings WHERE teacher_id=? LIMIT 1").bind(teacherId).first<{ notifications_enabled: number; discord_webhook_url: string | null }>();
   const webhook = settings?.notifications_enabled ? settings.discord_webhook_url?.trim() : settings ? "" : runtimeEnv().DISCORD_WEBHOOK_URL?.trim();
@@ -27,7 +31,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (auth.user.role !== "student" || !auth.user.teacherId || slot.teacher_id !== auth.user.teacherId) return jsonError("담당 교사의 상담 시간만 신청할 수 있습니다.", 403);
     const result = await db.prepare("UPDATE appointment_slots SET student_id=?,booking_status='pending',reserved_at=CURRENT_TIMESTAMP WHERE id=? AND student_id IS NULL").bind(auth.user.id, id).run();
     if (!result.meta.changes) return jsonError("이미 예약된 상담 시간입니다.", 409);
-    await notifyTeacher(slot.teacher_id, `📅 새 상담 신청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slot.time}\n담다에서 승인해 주세요.`);
+    await notifyTeacher(slot.teacher_id, `📅 새 상담 신청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n담다에서 승인해 주세요.`);
     return Response.json({ ok: true, bookingStatus: "pending" });
   }
 
@@ -44,7 +48,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     await db.prepare("UPDATE appointment_slots SET student_id=NULL,booking_status='available',reserved_at=NULL WHERE id=?").bind(id).run();
     if (auth.user.role === "student") {
       const kind = slot.booking_status === "pending" ? "상담 신청" : "확정 예약";
-      await notifyTeacher(slot.teacher_id, `↩️ ${kind} 취소\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slot.time}\n학생이 담다에서 취소했습니다.`);
+      await notifyTeacher(slot.teacher_id, `↩️ ${kind} 취소\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n학생이 담다에서 취소했습니다.`);
     }
     return Response.json({ ok: true });
   }
