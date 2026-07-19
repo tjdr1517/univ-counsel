@@ -144,6 +144,8 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(actionRoute, /action === "approve"/);
   assert.match(actionRoute, /booking_status='pending'/);
   assert.match(actionRoute, /DISCORD_WEBHOOK_URL/);
+  assert.match(actionRoute, /상담 신청.*확정 예약/);
+  assert.match(actionRoute, /학생이 담다에서 취소했습니다/);
   assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
   assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
   assert.match(schema, /appointment_slots/);

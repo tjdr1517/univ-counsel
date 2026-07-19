@@ -42,6 +42,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const allowed = auth.user.role === "teacher" ? slot.teacher_id === auth.user.id : slot.student_id === auth.user.id;
     if (!allowed) return jsonError("이 예약을 취소할 권한이 없습니다.", 403);
     await db.prepare("UPDATE appointment_slots SET student_id=NULL,booking_status='available',reserved_at=NULL WHERE id=?").bind(id).run();
+    if (auth.user.role === "student") {
+      const kind = slot.booking_status === "pending" ? "상담 신청" : "확정 예약";
+      await notifyTeacher(slot.teacher_id, `↩️ ${kind} 취소\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slot.time}\n학생이 담다에서 취소했습니다.`);
+    }
     return Response.json({ ok: true });
   }
 
