@@ -129,27 +129,34 @@ test("keeps counseling appointments private and race-safe", async () => {
     readFile(new URL("../drizzle/0005_silly_serpent_society.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0006_dear_ironclad.sql", import.meta.url), "utf8"),
   ]);
-  for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "승인 대기", "예약 확정", "예약됨"]) assert.ok(app.includes(label));
+  for (const label of ["상담 신청", "상담 가능 일정", "상담 일정 추가", "신청 가능", "승인 대기", "예약 확정", "예약됨"]) assert.ok(app.includes(label));
   assert.match(app, /appointment-calendar-layout/);
   assert.match(app, /time-picker-grid/);
-  assert.match(app, /여러 개를 한 번에 선택할 수 있어요/);
+  assert.match(app, /이미 등록되어 있어요/);
   assert.match(app, /시간으로 등록/);
   assert.match(app, /교시로 등록/);
   assert.match(app, /period-picker-grid/);
+  assert.match(app, /existingLabels/);
+  assert.match(app, /disabled=\{registered\}/);
+  assert.match(app, /상담 공지/);
+  assert.match(app, /공지 등록/);
   assert.match(createRoute, /input\.times/);
   assert.match(createRoute, /input\.periods/);
   assert.match(createRoute, /period:/);
   assert.match(createRoute, /db\.batch/);
   assert.match(app, /calendar-weekdays/);
   assert.match(app, /calendar-day/);
-  assert.match(app, /선택 날짜에 시간 추가/);
+  assert.match(app, /선택 날짜에 일정 추가/);
   assert.match(app, /initialDate/);
   assert.match(createRoute, /requireUser\(request, "teacher"\)/);
   assert.match(actionRoute, /student_id IS NULL/);
   assert.match(actionRoute, /action === "approve"/);
+  assert.match(actionRoute, /approve_cancel/);
+  assert.match(actionRoute, /reject_cancel/);
+  assert.match(actionRoute, /booking_status='cancel_pending'/);
   assert.match(actionRoute, /booking_status='pending'/);
   assert.match(actionRoute, /DISCORD_WEBHOOK_URL/);
-  assert.match(actionRoute, /상담 신청.*확정 예약/);
+  assert.match(actionRoute, /확정 예약 취소 요청/);
   assert.match(actionRoute, /학생이 담다에서 취소했습니다/);
   assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
   assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
