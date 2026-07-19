@@ -43,6 +43,13 @@
       "when": 1784381757808,
       "tag": "0005_silly_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1784430118872,
+      "tag": "0006_dear_ironclad",
+      "breakpoints": true
     }
   ]
 }

@@ -67,6 +67,7 @@ export type AppointmentSlot = {
   date: string;
   time: string;
   status: "available" | "reserved";
+  bookingStatus: "available" | "pending" | "confirmed";
   isMine: boolean;
   studentName?: string;
   studentNumber?: number | null;

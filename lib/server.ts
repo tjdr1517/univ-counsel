@@ -6,6 +6,7 @@ type RuntimeEnv = {
   FILES: R2Bucket;
   TEACHER_IDS?: string;
   TEACHER_SETUP_CODE?: string;
+  DISCORD_WEBHOOK_URL?: string;
 };
 
 export type SessionUser = User;

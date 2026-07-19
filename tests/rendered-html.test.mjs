@@ -120,15 +120,16 @@ test("removes every Firebase project artifact and keeps responsive CSS", async (
 });
 
 test("keeps counseling appointments private and race-safe", async () => {
-  const [app, dashboard, createRoute, actionRoute, schema, migration] = await Promise.all([
+  const [app, dashboard, createRoute, actionRoute, schema, migration, approvalMigration] = await Promise.all([
     readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/appointments/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/appointments/[id]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0005_silly_serpent_society.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0006_dear_ironclad.sql", import.meta.url), "utf8"),
   ]);
-  for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "내 예약", "예약됨"]) assert.ok(app.includes(label));
+  for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "승인 대기", "예약 확정", "예약됨"]) assert.ok(app.includes(label));
   assert.match(app, /appointment-calendar-layout/);
   assert.match(app, /time-picker-grid/);
   assert.match(app, /여러 시간을 한 번에 선택할 수 있어요/);
@@ -140,9 +141,14 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(app, /initialDate/);
   assert.match(createRoute, /requireUser\(request, "teacher"\)/);
   assert.match(actionRoute, /student_id IS NULL/);
+  assert.match(actionRoute, /action === "approve"/);
+  assert.match(actionRoute, /booking_status='pending'/);
+  assert.match(actionRoute, /DISCORD_WEBHOOK_URL/);
   assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
   assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
   assert.match(schema, /appointment_slots/);
   assert.match(migration, /CREATE TABLE `appointment_slots`/);
   assert.match(migration, /appointment_slots_teacher_datetime_unique/);
+  assert.match(approvalMigration, /ADD `booking_status`/);
+  assert.match(approvalMigration, /SET `booking_status` = 'confirmed'/);
 });

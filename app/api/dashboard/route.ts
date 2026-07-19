@@ -45,6 +45,7 @@ export async function GET(request: Request) {
   const appointments: AppointmentSlot[] = appointmentResult.results.map((row: Record<string, unknown>) => ({
     id: String(row.id), teacherId: String(row.teacher_id), date: String(row.date), time: String(row.time),
     status: row.student_id ? "reserved" : "available", isMine: Boolean(row.student_id && row.student_id === user.id),
+    bookingStatus: (row.student_id ? String(row.booking_status ?? "confirmed") : "available") as AppointmentSlot["bookingStatus"],
     ...(user.role === "teacher" && row.student_id ? { studentName: String(row.reserved_name ?? ""), studentNumber: row.reserved_number == null ? null : Number(row.reserved_number) } : {}),
   }));
   let students: ReturnType<typeof safeUser>[] = [];

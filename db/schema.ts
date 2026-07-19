@@ -94,6 +94,7 @@ export const appointmentSlots = sqliteTable("appointment_slots", {
   date: text("date").notNull(),
   time: text("time").notNull(),
   studentId: text("student_id"),
+  bookingStatus: text("booking_status").notNull().default("available"),
   reservedAt: text("reserved_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
