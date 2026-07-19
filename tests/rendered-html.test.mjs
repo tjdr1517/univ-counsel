@@ -152,3 +152,18 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(approvalMigration, /ADD `booking_status`/);
   assert.match(approvalMigration, /SET `booking_status` = 'confirmed'/);
 });
+
+test("keeps teacher notification settings private and configurable", async () => {
+  const [app, settingsRoute, actionRoute, migration] = await Promise.all([
+    readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/settings/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/appointments/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0007_wide_raider.sql", import.meta.url), "utf8"),
+  ]);
+  for (const label of ["설정", "상담 신청 알림", "디스코드 웹훅 URL", "테스트 알림", "연결 삭제"]) assert.ok(app.includes(label));
+  assert.match(settingsRoute, /requireUser\(request, "teacher"\)/);
+  assert.match(settingsRoute, /maskedWebhook/);
+  assert.doesNotMatch(settingsRoute, /discord_webhook_url.*Response\.json/);
+  assert.match(actionRoute, /teacher_settings/);
+  assert.match(migration, /CREATE TABLE `teacher_settings`/);
+});

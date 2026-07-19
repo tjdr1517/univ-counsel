@@ -50,6 +50,13 @@
       "when": 1784430118872,
       "tag": "0006_dear_ironclad",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1784433232748,
+      "tag": "0007_wide_raider",
+      "breakpoints": true
     }
   ]
 }

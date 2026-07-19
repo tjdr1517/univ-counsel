@@ -102,3 +102,10 @@ export const appointmentSlots = sqliteTable("appointment_slots", {
   index("appointment_slots_teacher_date_idx").on(table.teacherId, table.date),
   index("appointment_slots_student_idx").on(table.studentId, table.date),
 ]);
+
+export const teacherSettings = sqliteTable("teacher_settings", {
+  teacherId: text("teacher_id").primaryKey(),
+  notificationsEnabled: integer("notifications_enabled", { mode: "boolean" }).notNull().default(false),
+  discordWebhookUrl: text("discord_webhook_url"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
