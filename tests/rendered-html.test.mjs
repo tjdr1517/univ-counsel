@@ -130,6 +130,10 @@ test("keeps counseling appointments private and race-safe", async () => {
   ]);
   for (const label of ["상담 신청", "상담 가능 시간", "상담 시간 추가", "신청 가능", "내 예약", "예약됨"]) assert.ok(app.includes(label));
   assert.match(app, /appointment-calendar-layout/);
+  assert.match(app, /time-picker-grid/);
+  assert.match(app, /여러 시간을 한 번에 선택할 수 있어요/);
+  assert.match(createRoute, /input\.times/);
+  assert.match(createRoute, /db\.batch/);
   assert.match(app, /calendar-weekdays/);
   assert.match(app, /calendar-day/);
   assert.match(app, /선택 날짜에 시간 추가/);
