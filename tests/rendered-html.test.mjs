@@ -10,7 +10,8 @@ test("renders the Korean username login experience", async () => {
     readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(layout, /<html lang="ko">/);
-  assert.match(layout, /담다 \| 대입 상담 기록/);
+  assert.match(layout, /const title = "대입 상담 기록"/);
+  assert.doesNotMatch(`${layout}\n${app}`, /담다/);
   assert.match(app, /로그인/);
   assert.match(app, /계정 만들기/);
   assert.match(app, /아이디와 비밀번호/);
@@ -75,11 +76,16 @@ test("separates counseling notes from researched universities", async () => {
     readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
   ]);
-  for (const label of ["관심 대학", "대학", "학과", "전형 종류", "평가 요소", "수능 최저", "내신 등급", "2023년 입결", "2024년 입결", "2025년 입결", "지망 순위", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
+  for (const label of ["관심 대학", "대학", "학과", "전형 종류", "전형 이름", "학교장 추천 여부", "평가 요소", "수능 최저", "내신 등급", "2023년 입결", "2024년 입결", "2025년 입결", "지망 순위", "기타 메모", "상담 내용", "파일 또는 이미지 첨부"]) assert.match(app, new RegExp(label));
   for (const track of ["학생부 종합 전형", "학생부 교과 전형", "논술 전형", "실기(특기자) 전형", "기타 전형"]) assert.ok(app.includes(track));
   assert.match(app, /생기부 50 \+ 교과 50/);
   assert.match(app, /교과 100/);
   assert.match(interests, /evaluation_factors/);
+  assert.match(interests, /admission_name/);
+  assert.match(interests, /school_recommendation/);
+  assert.match(interestPriority, /관심 대학 내용은 교사만 수정할 수 있습니다/);
+  assert.match(interestPriority, /UPDATE interest_universities SET university=/);
+  assert.match(app, /관심 대학 수정/);
   assert.doesNotMatch(app, /커트라인|2023 커트|2024 커트|2025 커트/);
   assert.doesNotMatch(app, /setPlans|emptyPlan/);
   assert.doesNotMatch(consultations, /input\.plans|normalizedPlans/);
@@ -157,7 +163,7 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(actionRoute, /booking_status='pending'/);
   assert.match(actionRoute, /DISCORD_WEBHOOK_URL/);
   assert.match(actionRoute, /확정 예약 취소 요청/);
-  assert.match(actionRoute, /학생이 담다에서 취소했습니다/);
+  assert.match(actionRoute, /학생이 사이트에서 취소했습니다/);
   assert.match(actionRoute, /slot\.teacher_id !== auth\.user\.teacherId/);
   assert.match(dashboard, /user\.role === "teacher" && row\.student_id/);
   assert.match(dashboard, /교시/);

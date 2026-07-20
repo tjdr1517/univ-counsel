@@ -31,7 +31,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (auth.user.role !== "student" || !auth.user.teacherId || slot.teacher_id !== auth.user.teacherId) return jsonError("담당 교사의 상담 시간만 신청할 수 있습니다.", 403);
     const result = await db.prepare("UPDATE appointment_slots SET student_id=?,booking_status='pending',reserved_at=CURRENT_TIMESTAMP WHERE id=? AND student_id IS NULL").bind(auth.user.id, id).run();
     if (!result.meta.changes) return jsonError("이미 예약된 상담 시간입니다.", 409);
-    await notifyTeacher(slot.teacher_id, `📅 새 상담 신청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n담다에서 승인해 주세요.`);
+    await notifyTeacher(slot.teacher_id, `📅 새 상담 신청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n사이트에서 승인해 주세요.`);
     return Response.json({ ok: true, bookingStatus: "pending" });
   }
 
@@ -60,11 +60,11 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       if (slot.booking_status === "cancel_pending") return jsonError("이미 취소 승인을 기다리고 있습니다.", 409);
       if (slot.booking_status === "confirmed") {
         await db.prepare("UPDATE appointment_slots SET booking_status='cancel_pending' WHERE id=? AND student_id=? AND booking_status='confirmed'").bind(id, auth.user.id).run();
-        await notifyTeacher(slot.teacher_id, `↩️ 확정 예약 취소 요청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n담다에서 취소 승인 또는 거절을 선택해 주세요.`);
+        await notifyTeacher(slot.teacher_id, `↩️ 확정 예약 취소 요청\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n사이트에서 취소 승인 또는 거절을 선택해 주세요.`);
         return Response.json({ ok: true, bookingStatus: "cancel_pending" });
       }
       await db.prepare("UPDATE appointment_slots SET student_id=NULL,booking_status='available',reserved_at=NULL WHERE id=? AND student_id=?").bind(id, auth.user.id).run();
-      await notifyTeacher(slot.teacher_id, `↩️ 상담 신청 취소\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n학생이 담다에서 취소했습니다.`);
+      await notifyTeacher(slot.teacher_id, `↩️ 상담 신청 취소\n${auth.user.studentNumber ?? "-"}번 ${auth.user.name}\n${slot.date} ${slotLabel(slot.time)}\n학생이 사이트에서 취소했습니다.`);
       return Response.json({ ok: true, bookingStatus: "available" });
     }
     await db.prepare("UPDATE appointment_slots SET student_id=NULL,booking_status='available',reserved_at=NULL WHERE id=? AND teacher_id=?").bind(id, auth.user.id).run();

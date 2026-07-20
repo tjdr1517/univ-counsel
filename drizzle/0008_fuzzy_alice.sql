@@ -1,0 +1,2 @@
+ALTER TABLE `interest_universities` ADD `admission_name` text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE `interest_universities` ADD `school_recommendation` integer DEFAULT false NOT NULL;

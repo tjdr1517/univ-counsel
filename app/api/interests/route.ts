@@ -24,6 +24,8 @@ export async function POST(request: Request) {
   const university = String(input.university ?? "").trim();
   const department = String(input.department ?? "").trim();
   const track = String(input.track ?? "").trim();
+  const admissionName = String(input.admissionName ?? "").trim();
+  const schoolRecommendation = input.schoolRecommendation === true;
   const evaluationFactors = String(input.evaluationFactors ?? "").trim();
   const minimum = String(input.minimum ?? "").trim();
   const schoolGrade = String(input.schoolGrade ?? "").trim();
@@ -32,11 +34,11 @@ export async function POST(request: Request) {
   const cutoff2025 = String(input.cutoff2025 ?? "").trim();
   const priority = Number(input.priority);
   const memo = String(input.memo ?? "").trim();
-  if (!university || !department || !track) return jsonError("대학·학과·전형을 모두 입력해 주세요.");
+  if (!university || !department || !track || !admissionName) return jsonError("대학·학과·전형 종류·전형 이름을 모두 입력해 주세요.");
   if (!TRACK_TYPES.includes(track)) return jsonError("올바른 전형 종류를 선택해 주세요.");
   const id = crypto.randomUUID();
-  await db.prepare("INSERT INTO interest_universities (id,teacher_id,student_id,student_name,university,department,track,evaluation_factors,minimum,school_grade,cutoff_2023,cutoff_2024,cutoff_2025,priority,memo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
-    .bind(id, teacherId, studentId, studentName, university, department, track, evaluationFactors, minimum, schoolGrade, cutoff2023, cutoff2024, cutoff2025, 999, memo).run();
+  await db.prepare("INSERT INTO interest_universities (id,teacher_id,student_id,student_name,university,department,track,admission_name,school_recommendation,evaluation_factors,minimum,school_grade,cutoff_2023,cutoff_2024,cutoff_2025,priority,memo) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+    .bind(id, teacherId, studentId, studentName, university, department, track, admissionName, schoolRecommendation ? 1 : 0, evaluationFactors, minimum, schoolGrade, cutoff2023, cutoff2024, cutoff2025, 999, memo).run();
   await reorderInterestPriorities(db, studentId, id, priority);
   return Response.json({ id }, { status: 201 });
 }

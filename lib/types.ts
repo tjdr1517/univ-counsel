@@ -20,6 +20,8 @@ export type InterestUniversity = {
   university: string;
   department: string;
   track: string;
+  admissionName: string;
+  schoolRecommendation: boolean;
   evaluationFactors: string;
   minimum: string;
   schoolGrade: string;

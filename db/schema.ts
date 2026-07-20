@@ -50,6 +50,8 @@ export const interestUniversities = sqliteTable("interest_universities", {
   university: text("university").notNull(),
   department: text("department").notNull(),
   track: text("track").notNull(),
+  admissionName: text("admission_name").notNull().default(""),
+  schoolRecommendation: integer("school_recommendation", { mode: "boolean" }).notNull().default(false),
   evaluationFactors: text("evaluation_factors").notNull().default(""),
   minimum: text("minimum").notNull().default(""),
   schoolGrade: text("school_grade").notNull().default(""),

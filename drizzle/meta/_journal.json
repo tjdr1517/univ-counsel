@@ -57,6 +57,13 @@
       "when": 1784433232748,
       "tag": "0007_wide_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784523249245,
+      "tag": "0008_fuzzy_alice",
+      "breakpoints": true
     }
   ]
 }

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   if (input.action !== "test") return jsonError("올바른 설정 작업을 선택해 주세요.");
   const settings = await readSettings(auth.user.id);
   if (!settings?.discord_webhook_url) return jsonError("먼저 디스코드 웹훅 URL을 저장해 주세요.");
-  const response = await fetch(settings.discord_webhook_url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: "🔔 담다 알림 연결이 완료되었습니다.\n앞으로 새로운 상담 신청을 이 채널에서 알려드릴게요." }) });
+  const response = await fetch(settings.discord_webhook_url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ content: "🔔 상담 알림 연결이 완료되었습니다.\n앞으로 새로운 상담 신청을 이 채널에서 알려드릴게요." }) });
   if (!response.ok) return jsonError("디스코드가 웹훅 요청을 거부했습니다. URL을 다시 확인해 주세요.", 502);
   return Response.json({ ok: true });
 }
