@@ -109,5 +109,6 @@ export const teacherSettings = sqliteTable("teacher_settings", {
   teacherId: text("teacher_id").primaryKey(),
   notificationsEnabled: integer("notifications_enabled", { mode: "boolean" }).notNull().default(false),
   discordWebhookUrl: text("discord_webhook_url"),
+  registrationOpen: integer("registration_open", { mode: "boolean" }).notNull().default(false),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

@@ -13,14 +13,18 @@ export async function POST(request: Request) {
   if (role === "student" && (!Number.isInteger(studentNumber) || studentNumber! < 1 || studentNumber! > 99)) return jsonError("번호는 1~99 사이의 숫자로 입력해 주세요.");
 
   const runtime = runtimeEnv();
-  let status: "pending" | "approved" = "pending";
+  const status = "approved";
+  let teacherId: string | null = null;
   if (role === "teacher") {
     const teacherIds = String(runtime.TEACHER_IDS ?? "").split(",").map(normalizeUsername).filter(Boolean);
     const setupCode = String(input.setupCode ?? "").trim();
     if (!teacherIds.includes(username) || !runtime.TEACHER_SETUP_CODE || !timingSafeEqual(setupCode, runtime.TEACHER_SETUP_CODE)) {
       return jsonError("교사 아이디 또는 개설 코드가 올바르지 않습니다.", 403);
     }
-    status = "approved";
+  } else {
+    const openTeacher = await runtime.DB.prepare("SELECT u.id FROM users u JOIN teacher_settings s ON s.teacher_id=u.id WHERE u.role='teacher' AND u.status='approved' AND s.registration_open=1 ORDER BY s.updated_at DESC LIMIT 1").first<{ id: string }>();
+    if (!openTeacher) return jsonError("현재 학생 가입이 닫혀 있습니다. 선생님이 가입을 열어 준 뒤 다시 시도해 주세요.", 403);
+    teacherId = openTeacher.id;
   }
 
   const existing = await runtime.DB.prepare("SELECT id FROM users WHERE email = ? LIMIT 1").bind(username).first();
@@ -28,8 +32,14 @@ export async function POST(request: Request) {
   const id = crypto.randomUUID();
   const passwordData = await hashPassword(password);
   try {
-    await runtime.DB.prepare(`INSERT INTO users (id,email,name,password_hash,password_salt,role,status,grade,class_number,approved_at,approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?)`)
-      .bind(id, username, name, passwordData.hash, passwordData.salt, role, status, null, studentNumber, status === "approved" ? new Date().toISOString() : null, status === "approved" ? id : null).run();
+    if (role === "student") {
+      const result = await runtime.DB.prepare(`INSERT INTO users (id,email,name,password_hash,password_salt,role,status,teacher_id,grade,class_number,approved_at,approved_by) SELECT ?,?,?,?,?,?,?,?,?,?,?,? WHERE EXISTS (SELECT 1 FROM teacher_settings WHERE teacher_id=? AND registration_open=1)`)
+        .bind(id, username, name, passwordData.hash, passwordData.salt, role, status, teacherId, null, studentNumber, new Date().toISOString(), teacherId, teacherId).run();
+      if (!result.meta.changes) return jsonError("현재 학생 가입이 닫혀 있습니다. 선생님이 가입을 열어 준 뒤 다시 시도해 주세요.", 403);
+    } else {
+      await runtime.DB.prepare(`INSERT INTO users (id,email,name,password_hash,password_salt,role,status,teacher_id,grade,class_number,approved_at,approved_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .bind(id, username, name, passwordData.hash, passwordData.salt, role, status, null, null, null, new Date().toISOString(), id).run();
+    }
   } catch {
     return jsonError("계정을 만들지 못했습니다. 잠시 후 다시 시도해 주세요.", 500);
   }

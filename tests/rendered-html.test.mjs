@@ -43,11 +43,10 @@ test("uses D1 and R2 with generated migrations", async () => {
 });
 
 test("keeps authentication and record authorization on the server", async () => {
-  const [server, dashboard, consultations, approval, attachments, announcementActions] = await Promise.all([
+  const [server, dashboard, consultations, attachments, announcementActions] = await Promise.all([
     readFile(new URL("../lib/server.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/dashboard/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/consultations/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/users/[id]/approve/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/attachments/[id]/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/announcements/[id]/route.ts", import.meta.url), "utf8"),
   ]);
@@ -59,12 +58,33 @@ test("keeps authentication and record authorization on the server", async () => 
   assert.match(dashboard, /student_id = \?/);
   assert.match(dashboard, /teacher_id = \?/);
   assert.match(consultations, /teacher_id=\?/);
-  assert.match(approval, /status='approved'/);
   assert.match(attachments, /canAccessOwner/);
   assert.match(announcementActions, /row\.author_id !== auth\.user\.id/);
   assert.match(announcementActions, /export async function PATCH/);
   assert.match(announcementActions, /export async function DELETE/);
   assert.match(announcementActions, /FILES\.delete/);
+});
+
+test("lets the teacher open and close student registration without individual approval", async () => {
+  const [app, registerRoute, registrationRoute, settingsRoute, schema, migration] = await Promise.all([
+    readFile(new URL("../app/ConsultationApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/auth/registration/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/settings/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0009_vengeful_carmella_unuscione.sql", import.meta.url), "utf8"),
+  ]);
+  for (const label of ["학생 가입 열기", "학생 가입 닫기", "가입 열림", "가입 닫힘", "개별 승인 없이"]) assert.ok(app.includes(label));
+  assert.doesNotMatch(app, /가입 신청을 승인|학생 계정을 승인/);
+  assert.match(app, /\/api\/auth\/registration/);
+  assert.match(registerRoute, /registration_open=1/);
+  assert.match(registerRoute, /const status = "approved"/);
+  assert.match(registerRoute, /teacher_id/);
+  assert.match(registrationRoute, /registration_open=1/);
+  assert.match(settingsRoute, /input\.action === "registration"/);
+  assert.match(settingsRoute, /status='approved',teacher_id=\?/);
+  assert.match(schema, /registrationOpen/);
+  assert.match(migration, /ADD `registration_open`/);
 });
 
 test("separates counseling notes from researched universities", async () => {

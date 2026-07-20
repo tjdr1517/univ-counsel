@@ -54,14 +54,9 @@ export async function GET(request: Request) {
     ...(user.role === "teacher" && row.student_id ? { studentName: String(row.reserved_name ?? ""), studentNumber: row.reserved_number == null ? null : Number(row.reserved_number) } : {}),
   }));
   let students: ReturnType<typeof safeUser>[] = [];
-  let pendingStudents: ReturnType<typeof safeUser>[] = [];
   if (user.role === "teacher") {
-    const [approved, pending] = await Promise.all([
-      db.prepare("SELECT * FROM users WHERE role='student' AND status='approved' AND teacher_id=? ORDER BY name").bind(user.id).all<Record<string, unknown>>(),
-      db.prepare("SELECT * FROM users WHERE role='student' AND status='pending' ORDER BY created_at").all<Record<string, unknown>>(),
-    ]);
+    const approved = await db.prepare("SELECT * FROM users WHERE role='student' AND status='approved' AND teacher_id=? ORDER BY name").bind(user.id).all<Record<string, unknown>>();
     students = approved.results.map(safeUser);
-    pendingStudents = pending.results.map(safeUser);
   }
-  return Response.json({ user, consultations, interests, announcements, appointments, students, pendingStudents });
+  return Response.json({ user, consultations, interests, announcements, appointments, students, pendingStudents: [] });
 }

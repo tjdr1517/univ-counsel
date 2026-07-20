@@ -1,0 +1,1 @@
+ALTER TABLE `teacher_settings` ADD `registration_open` integer DEFAULT false NOT NULL;
