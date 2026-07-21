@@ -12,6 +12,7 @@ test("renders the Korean username login experience", async () => {
   assert.match(layout, /<html lang="ko">/);
   assert.match(layout, /const title = "대입 상담 기록"/);
   assert.doesNotMatch(layout, /og\.png|images:|summary_large_image/);
+  assert.doesNotMatch(layout, /description|openGraph|교사와 학생이 함께 관리하는 안전한/);
   assert.doesNotMatch(`${layout}\n${app}`, /담다/);
   assert.match(app, /로그인/);
   assert.match(app, /계정 만들기/);
