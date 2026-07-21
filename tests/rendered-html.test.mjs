@@ -174,6 +174,12 @@ test("keeps counseling appointments private and race-safe", async () => {
   assert.match(createRoute, /db\.batch/);
   assert.match(app, /calendar-weekdays/);
   assert.match(app, /calendar-day/);
+  assert.match(app, /pendingAppointmentCount/);
+  assert.match(app, /bookingStatus === "pending" \|\| slot\.bookingStatus === "cancel_pending"/);
+  assert.match(app, /className=\{attention \? "attention" : ""\}/);
+  assert.match(app, /처리할 상담 요청/);
+  assert.match(app, /setInterval\(reload, 30_000\)/);
+  assert.match(app, /addEventListener\("focus", reload\)/);
   assert.match(app, /선택 날짜에 일정 추가/);
   assert.match(app, /initialDate/);
   assert.match(createRoute, /requireUser\(request, "teacher"\)/);

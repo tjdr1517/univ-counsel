@@ -86,6 +86,17 @@ export default function ConsultationApp() {
   }, []);
 
   useEffect(() => {
+    if (user?.role !== "teacher" || user.status !== "approved") return;
+    const reload = () => {
+      if (document.visibilityState !== "visible") return;
+      api<DashboardData>("/api/dashboard").then(next => { setData(next); setUser(next.user); }).catch(() => undefined);
+    };
+    const timer = window.setInterval(reload, 30_000);
+    window.addEventListener("focus", reload);
+    return () => { window.clearInterval(timer); window.removeEventListener("focus", reload); };
+  }, [user?.id, user?.role, user?.status]);
+
+  useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2600);
     return () => window.clearTimeout(timer);
@@ -113,6 +124,7 @@ export default function ConsultationApp() {
   };
   const logout = async () => { await api("/api/auth/logout", { method: "POST" }); setUser(null); setData(null); };
   const notify = (message: string) => { setToast(message); refresh().catch(() => undefined); };
+  const pendingAppointmentCount = user.role === "teacher" ? data.appointments.filter(slot => slot.bookingStatus === "pending" || slot.bookingStatus === "cancel_pending").length : 0;
 
   return <div className="app-shell">
     <aside className={`sidebar ${menu ? "open" : ""}`}>
@@ -122,7 +134,7 @@ export default function ConsultationApp() {
         <Nav active={view === "home"} icon={<Home />} label="홈" onClick={() => navigate("home")} />
         <Nav active={view === "records"} icon={<ClipboardList />} label="상담 기록" badge={records.length} onClick={() => navigate("records")} />
         <Nav active={view === "interests"} icon={<GraduationCap />} label="관심 대학" badge={interests.length} onClick={() => navigate("interests")} />
-        <Nav active={view === "appointments"} icon={<CalendarClock />} label="상담 신청" badge={data.appointments.filter(slot => slot.status === "available" || slot.isMine).length} onClick={() => navigate("appointments")} />
+        <Nav active={view === "appointments"} icon={<CalendarClock />} label="상담 신청" badge={user.role === "teacher" ? (pendingAppointmentCount || undefined) : data.appointments.filter(slot => slot.isMine).length} attention={user.role === "teacher" && pendingAppointmentCount > 0} onClick={() => navigate("appointments")} />
         {user.role === "teacher" && <Nav active={view === "students"} icon={<Users />} label="학생 관리" badge={data.students.length} onClick={() => navigate("students")} />}
         <Nav active={view === "announcements"} icon={<Megaphone />} label="공지 · 정보" onClick={() => navigate("announcements")} />
         {user.role === "teacher" && <Nav active={view === "settings"} icon={<Settings2 />} label="설정" onClick={() => navigate("settings")} />}
@@ -131,7 +143,7 @@ export default function ConsultationApp() {
     </aside>
     {menu && <button className="nav-scrim" onClick={() => setMenu(false)} aria-label="메뉴 닫기" />}
     <main className="main-panel">
-      <header className="topbar"><button className="icon-button mobile-only" onClick={() => setMenu(true)} aria-label="메뉴 열기"><Menu size={21} /></button><div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="학생, 학교, 상담 내용 검색" /></div><div className="topbar-actions"><Bell size={18} /><span className="top-avatar">{user.name.slice(0, 1)}</span></div></header>
+      <header className="topbar"><button className="icon-button mobile-only" onClick={() => setMenu(true)} aria-label="메뉴 열기"><Menu size={21} /></button><div className="search-box"><Search size={17} /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="학생, 학교, 상담 내용 검색" /></div><div className="topbar-actions"><span className={`notification-bell ${pendingAppointmentCount ? "has-alert" : ""}`} aria-label={pendingAppointmentCount ? `처리할 상담 요청 ${pendingAppointmentCount}건` : "새 알림 없음"}><Bell size={18} />{pendingAppointmentCount > 0 && <i>{pendingAppointmentCount}</i>}</span><span className="top-avatar">{user.name.slice(0, 1)}</span></div></header>
       <div className="page-wrap">
         {view === "home" && <HomePage user={user} data={data} records={records} onView={navigate} onNew={() => setRecordModal(true)} onSelect={record => { setSelected(record); setView("records"); }} />}
         {view === "records" && <RecordsPage user={user} records={records} selected={selected} onSelect={setSelected} onBack={() => setSelected(null)} onNew={() => setRecordModal(true)} />}
@@ -150,8 +162,8 @@ export default function ConsultationApp() {
   </div>;
 }
 
-function Nav({ active, icon, label, badge, onClick }: { active: boolean; icon: React.ReactNode; label: string; badge?: number; onClick: () => void }) {
-  return <button className={active ? "active" : ""} onClick={onClick}>{icon}<span>{label}</span>{badge !== undefined && <small>{badge}</small>}</button>;
+function Nav({ active, icon, label, badge, attention, onClick }: { active: boolean; icon: React.ReactNode; label: string; badge?: number; attention?: boolean; onClick: () => void }) {
+  return <button className={`${active ? "active" : ""} ${attention ? "has-attention" : ""}`} onClick={onClick}>{icon}<span>{label}</span>{badge !== undefined && <small className={attention ? "attention" : ""}>{badge}</small>}</button>;
 }
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: (user: User) => void }) {
@@ -192,7 +204,9 @@ function ApprovalWaiting({ user, onLogout }: { user: User; onLogout: () => void 
 
 function HomePage({ user, data, records, onView, onNew, onSelect }: { user: User; data: DashboardData; records: Consultation[]; onView: (view: View) => void; onNew: () => void; onSelect: (record: Consultation) => void }) {
   const teacher = user.role === "teacher";
+  const pendingAppointments = teacher ? data.appointments.filter(slot => slot.bookingStatus === "pending" || slot.bookingStatus === "cancel_pending").length : 0;
   return <><div className="page-heading"><div><span className="eyebrow">TODAY&apos;S COUNSELING</span><h1>{user.name}님, 안녕하세요.</h1><p>{teacher ? "학생의 지원 전략과 상담 과정을 차곡차곡 기록하세요." : "선생님과 함께 정리한 지원 전략을 확인하세요."}</p></div>{teacher && <button className="primary-button" onClick={onNew}><Plus size={17} />새 상담 기록</button>}</div>
+    {pendingAppointments > 0 && <button className="approval-banner appointment-alert-banner" onClick={() => onView("appointments")}><CalendarClock /><span><strong>처리할 상담 요청 {pendingAppointments}건</strong><small>예약 신청 또는 취소 요청을 확인해 주세요.</small></span><ChevronRight /></button>}
     <div className="stats-grid"><Stat icon={<Users />} label={teacher ? "담당 학생" : "나의 상담"} value={teacher ? `${data.students.length}명` : `${records.length}건`} /><Stat icon={<ClipboardList />} label="상담 기록" value={`${records.length}건`} /><Stat icon={<GraduationCap />} label="관심 대학" value={`${new Set(data.interests.map(item => item.university)).size}곳`} /></div>
     <div className="content-grid"><section className="card"><div className="card-header"><h2><ClipboardList />최근 상담</h2><button onClick={() => onView("records")}>전체 보기 <ChevronRight /></button></div><div className="record-list">{records.slice(0, 5).map(row => <button className="record-row" key={row.id} onClick={() => onSelect(row)}><span className="date-tile"><strong>{row.date.slice(8)}</strong><small>{row.date.slice(5, 7)}월</small></span><span className="record-copy"><strong>{row.topic}</strong><small>{row.studentName} · {row.summary}</small></span><ChevronRight /></button>)}{!records.length && <Empty text="아직 상담 기록이 없습니다." />}</div></section>
     <section className="card"><div className="card-header"><h2><Megaphone />최근 공지</h2><button onClick={() => onView("announcements")}>전체 보기 <ChevronRight /></button></div><div className="notice-list">{data.announcements.slice(0, 4).map(item => <article key={item.id}><span className="tag">{item.category}</span><div><strong>{item.title}</strong><p>{item.body}</p></div></article>)}{!data.announcements.length && <Empty text="등록된 공지가 없습니다." />}</div></section></div></>;
